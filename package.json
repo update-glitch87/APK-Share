@@ -4,6 +4,7 @@
   "description": "Upload APK, get short direct download link. No account needed.",
   "main": "server.js",
   "scripts": {
+    "build": "echo 'Build complete'",
     "start": "node server.js"
   },
   "dependencies": {
