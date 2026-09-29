@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: apk-share
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: uploads
+      mountPath: /app/uploads
+      sizeGB: 1

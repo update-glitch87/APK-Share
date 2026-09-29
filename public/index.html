@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APK Share - Short Direct Download Links</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f0f23;
+            --card: rgba(255,255,255,0.05);
+            --border: rgba(255,255,255,0.1);
+            --text: #fff;
+            --text2: #a0a0b0;
+            --accent1: #667eea;
+            --accent2: #764ba2;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container { width: 100%; max-width: 480px; margin: auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { color: var(--text2); font-size: 14px; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent1);
+            background: rgba(102,126,234,0.1);
+        }
+        .upload-area .icon { font-size: 48px; margin-bottom: 10px; }
+        .upload-area .text { font-size: 16px; margin-bottom: 5px; }
+        .upload-area .subtext { font-size: 12px; color: var(--text2); }
+        .file-info {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .file-info.show { display: block; }
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .progress-container.show { display: block; }
+        .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent1), var(--accent2));
+            border-radius: 3px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text2);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent1), var(--accent2));
+            color: #fff;
+            width: 100%;
+            margin-top: 15px;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+        .success-card { display: none; text-align: center; }
+        .success-card.show { display: block; }
+        .success-icon { font-size: 48px; margin-bottom: 10px; }
+        .success-card h2 { margin-bottom: 5px; }
+        .success-card p { color: var(--text2); font-size: 14px; margin-bottom: 20px; }
+        .link-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .link-box input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            font-size: 13px;
+            outline: none;
+        }
+        .link-box button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent1);
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .qr-code {
+            margin: 20px auto;
+            display: inline-block;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        .file-details {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text2);
+        }
+        .error-message {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            color: var(--error);
+            font-size: 14px;
+        }
+        .error-message.show { display: block; }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--text2);
+            font-size: 12px;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 APK Share</h1>
+            <p>Upload APK → Get short direct download link</p>
+        </div>
+
+        <div class="card" id="uploadCard">
+            <div class="upload-area" id="uploadArea">
+                <div class="icon">📁</div>
+                <div class="text">Drag & Drop APK here</div>
+                <div class="subtext">or click to browse • Max 200MB</div>
+            </div>
+            <input type="file" id="fileInput" accept=".apk,.apks,.xapk,.apkm" class="hidden">
+
+            <div class="file-info" id="fileInfo">
+                <strong id="fileName"></strong>
+                <span id="fileSize" style="color: var(--text2); margin-left: 8px;"></span>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="progressPercent">0%</span>
+                    <span id="progressSpeed"></span>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="uploadBtn" disabled>Upload APK</button>
+
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="card success-card" id="successCard">
+            <div class="success-icon">✅</div>
+            <h2>Upload Complete!</h2>
+            <p>Your short download link is ready</p>
+
+            <div class="link-box">
+                <input type="text" id="shortLink" readonly>
+                <button id="copyBtn">📋 Copy</button>
+            </div>
+
+            <div class="qr-code" id="qrCode"></div>
+
+            <div class="file-details" id="fileDetails"></div>
+
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-secondary" id="downloadBtn">⬇ Download</button>
+                <button class="btn btn-secondary" id="shareBtn">📤 Share</button>
+                <button class="btn btn-secondary" id="newBtn">📦 New Upload</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>No account needed • Files stored temporarily • Short direct links</p>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressSpeed = document.getElementById('progressSpeed');
+        const errorMessage = document.getElementById('errorMessage');
+        const uploadCard = document.getElementById('uploadCard');
+        const successCard = document.getElementById('successCard');
+        const shortLink = document.getElementById('shortLink');
+        const copyBtn = document.getElementById('copyBtn');
+        const qrCode = document.getElementById('qrCode');
+        const fileDetails = document.getElementById('fileDetails');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const shareBtn = document.getElementById('shareBtn');
+        const newBtn = document.getElementById('newBtn');
+
+        let selectedFile = null;
+        let currentShortUrl = null;
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            const allowedExts = ['.apk', '.apks', '.xapk', '.apkm'];
+            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+            if (!allowedExts.includes(ext)) {
+                showError('Only APK files allowed (.apk, .apks, .xapk, .apkm)');
+                return;
+            }
+
+            if (file.size > 200 * 1024 * 1024) {
+                showError('File too large. Maximum size is 200MB.');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatSize(file.size);
+            fileInfo.classList.add('show');
+            uploadBtn.disabled = false;
+            hideError();
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorMessage.classList.add('show');
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        uploadBtn.addEventListener('click', () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('apk', selectedFile);
+
+            const xhr = new XMLHttpRequest();
+            const startTime = Date.now();
+            let lastLoaded = 0;
+            let lastTime = startTime;
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            progressContainer.classList.add('show');
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressPercent.textContent = percent + '%';
+
+                    const now = Date.now();
+                    const timeDiff = (now - lastTime) / 1000;
+                    if (timeDiff > 0.5) {
+                        const speed = (e.loaded - lastLoaded) / timeDiff;
+                        progressSpeed.textContent = formatSize(speed) + '/s';
+                        lastLoaded = e.loaded;
+                        lastTime = now;
+                    }
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload APK';
+
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    showSuccess(response);
+                } else {
+                    try {
+                        const error = JSON.parse(xhr.responseText);
+                        showError(error.error || 'Upload failed');
+                    } catch {
+                        showError('Upload failed. Please try again.');
+                    }
+                    progressContainer.classList.remove('show');
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload APK';
+                progressContainer.classList.remove('show');
+                showError('Network error. Please try again.');
+            });
+
+            xhr.open('POST', '/api/upload');
+            xhr.send(formData);
+        });
+
+        function showSuccess(data) {
+            currentShortUrl = data.shortUrl;
+            shortLink.value = data.shortUrl;
+
+            qrCode.innerHTML = '';
+            new QRCode(qrCode, {
+                text: data.shortUrl,
+                width: 128,
+                height: 128,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            fileDetails.innerHTML = `
+                <strong>${data.fileName}</strong><br>
+                Size: ${formatSize(data.fileSize)}<br>
+                Link: ${data.shortUrl}
+            `;
+
+            uploadCard.classList.add('hidden');
+            successCard.classList.add('show');
+
+            // Auto-copy to clipboard
+            shortLink.select();
+            document.execCommand('copy');
+        }
+
+        copyBtn.addEventListener('click', () => {
+            shortLink.select();
+            document.execCommand('copy');
+            copyBtn.textContent = '✅ Copied!';
+            setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (currentShortUrl) {
+                window.location.href = currentShortUrl;
+            }
+        });
+
+        shareBtn.addEventListener('click', async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'APK Download',
+                        text: 'Download APK file',
+                        url: currentShortUrl
+                    });
+                } catch {}
+            } else {
+                shortLink.select();
+                document.execCommand('copy');
+                shareBtn.textContent = '📋 Copied!';
+                setTimeout(() => { shareBtn.textContent = '📤 Share'; }, 2000);
+            }
+        });
+
+        newBtn.addEventListener('click', () => {
+            successCard.classList.remove('show');
+            uploadCard.classList.remove('hidden');
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            progressContainer.classList.remove('show');
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            progressSpeed.textContent = '';
+            selectedFile = null;
+            uploadBtn.disabled = true;
+            currentShortUrl = null;
+            hideError();
+        });
+    </script>
+</body>
+</html>
