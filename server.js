@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 const DB_FILE = path.join(__dirname, 'db.json');
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
+const MAX_DISK_USAGE = 400 * 1024 * 1024; // 400MB limit
+
+const ADMIN_USER = 'sialkwl';
+const ADMIN_PASS = 'Sialkwl@9900';
 
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -33,6 +37,47 @@ function generateShortId() {
     return result;
 }
 
+function getDirSize(dir) {
+    let size = 0;
+    try {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+            const filePath = path.join(dir, file);
+            const stats = fs.statSync(filePath);
+            if (stats.isFile()) size += stats.size;
+        }
+    } catch (err) {
+        console.error('Error calculating dir size:', err);
+    }
+    return size;
+}
+
+function cleanupOldFiles() {
+    const currentSize = getDirSize(UPLOAD_DIR);
+    if (currentSize <= MAX_DISK_USAGE) return;
+
+    console.log(`Disk usage ${currentSize} exceeds limit ${MAX_DISK_USAGE} — cleaning up...`);
+
+    const files = Object.entries(db)
+        .map(([shortId, data]) => ({ shortId, ...data }))
+        .sort((a, b) => new Date(a.uploadDate) - new Date(b.uploadDate));
+
+    for (const file of files) {
+        if (currentSize <= MAX_DISK_USAGE * 0.8) break;
+
+        if (fs.existsSync(file.filePath)) {
+            fs.unlinkSync(file.filePath);
+            console.log(`Deleted old file: ${file.originalName}`);
+        }
+        delete db[file.shortId];
+    }
+
+    saveDb();
+    console.log('Cleanup complete');
+}
+
+setInterval(cleanupOldFiles, 5 * 60 * 1000);
+
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -41,6 +86,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
+app.use(express.json());
 app.use(express.static('public'));
 
 const storage = multer.diskStorage({
@@ -66,6 +112,42 @@ const upload = multer({
     }
 });
 
+app.post('/api/admin/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === ADMIN_USER && password === ADMIN_PASS) {
+        const token = crypto.randomBytes(32).toString('hex');
+        res.json({ success: true, token });
+    } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+    }
+});
+
+app.get('/api/admin/files', (req, res) => {
+    const files = Object.entries(db).map(([shortId, data]) => ({
+        shortId,
+        ...data
+    }));
+    res.json({ files });
+});
+
+app.delete('/api/admin/delete/:shortId', (req, res) => {
+    const { shortId } = req.params;
+    const file = db[shortId];
+
+    if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+
+    if (fs.existsSync(file.filePath)) {
+        fs.unlinkSync(file.filePath);
+    }
+
+    delete db[shortId];
+    saveDb();
+
+    res.json({ success: true, message: 'File deleted' });
+});
+
 app.post('/api/upload', upload.single('apk'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
@@ -85,6 +167,7 @@ app.post('/api/upload', upload.single('apk'), (req, res) => {
     };
 
     saveDb();
+    cleanupOldFiles();
 
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
     const shortUrl = `${protocol}://${req.get('host')}/${shortId}`;
