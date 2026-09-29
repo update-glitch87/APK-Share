@@ -86,7 +86,8 @@ app.post('/api/upload', upload.single('apk'), (req, res) => {
 
     saveDb();
 
-    const shortUrl = `${req.protocol}://${req.get('host')}/${shortId}`;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const shortUrl = `${protocol}://${req.get('host')}/${shortId}`;
 
     res.json({
         success: true,
