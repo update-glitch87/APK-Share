@@ -30,7 +30,7 @@
             padding: 20px;
         }
         .container { width: 100%; max-width: 480px; margin: auto; }
-        .header { text-align: center; margin-bottom: 30px; }
+        .header { text-align: center; margin-bottom: 30px; margin-top: 40px; }
         .header h1 { font-size: 28px; margin-bottom: 8px; }
         .header p { color: var(--text2); font-size: 14px; }
         .card {
@@ -171,9 +171,52 @@
         .footer { text-align: center; margin-top: 30px; color: var(--text2); font-size: 12px; }
         .hidden { display: none !important; }
 
-        /* Admin Panel */
-        .admin-login { text-align: center; }
-        .admin-login input {
+        /* Admin Top Button */
+        .admin-top-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent1), var(--accent2));
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+            transition: all 0.3s;
+        }
+        .admin-top-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.6); }
+
+        /* Admin Modal */
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .admin-modal.show { display: flex; }
+        .admin-modal-content {
+            background: #1a1a2e;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .admin-modal-content h2 { margin-bottom: 20px; text-align: center; }
+        .admin-modal-content input {
             width: 100%;
             padding: 12px;
             margin-bottom: 12px;
@@ -184,6 +227,20 @@
             font-size: 14px;
             outline: none;
         }
+        .admin-modal-content .btn { width: 100%; }
+        .admin-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            color: var(--text2);
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .admin-close:hover { color: var(--text); }
+
+        /* Admin Panel */
         .admin-panel { display: none; }
         .admin-panel.show { display: block; }
         .admin-header {
@@ -228,11 +285,11 @@
             border-radius: 6px;
             cursor: pointer;
         }
-        .admin-link { color: var(--text2); font-size: 12px; text-decoration: none; display: inline-block; margin-top: 15px; }
-        .admin-link:hover { color: var(--accent1); }
     </style>
 </head>
 <body>
+    <button class="admin-top-btn" id="adminTopBtn">🔐 Admin</button>
+
     <div class="container">
         <div class="header">
             <h1>📦 APK Share</h1>
@@ -266,8 +323,6 @@
             <button class="btn btn-primary" id="uploadBtn" disabled>Upload APK</button>
 
             <div class="error-message" id="errorMessage"></div>
-
-            <a href="#" class="admin-link" id="adminLoginLink">🔐 Admin Login</a>
         </div>
 
         <!-- Success Card -->
@@ -292,21 +347,11 @@
             </div>
         </div>
 
-        <!-- Admin Login Card -->
-        <div class="card admin-login" id="adminLoginCard	">
-            <h2 style="margin-bottom: 20px;">🔐 Admin Login</h2>
-            <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
-            <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password">
-            <button class="btn btn-primary" id="adminLoginBtn">Login</button>
-            <div class="error-message" id="adminError"></div>
-            <a href="#" class="admin-link" id="backToUpload">← Back to Upload</a>
-        </div>
-
         <!-- Admin Panel Card -->
         <div class="card admin-panel" id="adminPanelCard">
             <div class="admin-header">
                 <h2>🔐 Admin Panel</h2>
-                <button class="btn btn-secondary" id="adminLogoutBtn" style="padding: 8px 16px; font-size: 12px;">Logout</button>
+                <button class="btn btn-secondary" id="adminCloseBtn" style="padding: 8px 16px; font-size: 12px;">✕ Close</button>
             </div>
 
             <div class="admin-stats">
@@ -326,12 +371,22 @@
             </div>
 
             <div class="file-list" id="fileList"></div>
-
-            <a href="#" class="admin-link" id="backToUpload2">← Back to Upload</a>
         </div>
 
         <div class="footer">
             <p>No account needed • Files stored temporarily • Short direct links</p>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div class="admin-modal" id="adminModal">
+        <div class="admin-modal-content">
+            <button class="admin-close" id="adminModalClose">✕</button>
+            <h2>🔐 Admin Login</h2>
+            <input type="text" id="adminUser" placeholder="Username" autocomplete="username">
+            <input type="password" id="adminPass" placeholder="Password" autocomplete="current-password">
+            <button class="btn btn-primary" id="adminLoginBtn">Login</button>
+            <div class="error-message" id="adminError"></div>
         </div>
     </div>
 
@@ -358,16 +413,15 @@
         const newBtn = document.getElementById('newBtn');
 
         // Admin elements
-        const adminLoginLink = document.getElementById('adminLoginLink');
-        const adminLoginCard = document.getElementById('adminLoginCard');
+        const adminTopBtn = document.getElementById('adminTopBtn');
+        const adminModal = document.getElementById('adminModal');
+        const adminModalClose = document.getElementById('adminModalClose');
         const adminUser = document.getElementById('adminUser');
         const adminPass = document.getElementById('adminPass');
         const adminLoginBtn = document.getElementById('adminLoginBtn');
         const adminError = document.getElementById('adminError');
         const adminPanelCard = document.getElementById('adminPanelCard');
-        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
-        const backToUpload = document.getElementById('backToUpload');
-        const backToUpload2 = document.getElementById('backToUpload2');
+        const adminCloseBtn = document.getElementById('adminCloseBtn');
         const totalFiles = document.getElementById('totalFiles');
         const totalSize = document.getElementById('totalSize');
         const fileList = document.getElementById('fileList');
@@ -572,22 +626,19 @@
         });
 
         // Admin handlers
-        adminLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            uploadCard.classList.add('hidden');
-            adminLoginCard.classList.remove('hidden');
+        adminTopBtn.addEventListener('click', () => {
+            adminModal.classList.add('show');
         });
 
-        backToUpload.addEventListener('click', (e) => {
-            e.preventDefault();
-            adminLoginCard.classList.add('hidden');
-            uploadCard.classList.remove('hidden');
+        adminModalClose.addEventListener('click', () => {
+            adminModal.classList.remove('show');
+            adminError.classList.remove('show');
         });
 
-        backToUpload2.addEventListener('click', (e) => {
-            e.preventDefault();
+        adminCloseBtn.addEventListener('click', () => {
             adminPanelCard.classList.remove('show');
             uploadCard.classList.remove('hidden');
+            adminToken = null;
         });
 
         adminLoginBtn.addEventListener('click', async () => {
@@ -611,8 +662,12 @@
 
                 if (res.ok && data.success) {
                     adminToken = data.token;
-                    adminLoginCard.classList.add('hidden');
+                    adminModal.classList.remove('show');
+                    uploadCard.classList.add('hidden');
                     adminPanelCard.classList.add('show');
+                    adminUser.value = '';
+                    adminPass.value = '';
+                    adminError.classList.remove('show');
                     loadAdminFiles();
                 } else {
                     adminError.textContent = data.error || 'Login failed';
@@ -622,15 +677,6 @@
                 adminError.textContent = 'Network error. Please try again.';
                 adminError.classList.add('show');
             }
-        });
-
-        adminLogoutBtn.addEventListener('click', () => {
-            adminToken = null;
-            adminPanelCard.classList.remove('show');
-            uploadCard.classList.remove('hidden');
-            adminUser.value = '';
-            adminPass.value = '';
-            adminError.classList.remove('show');
         });
 
         async function loadAdminFiles() {
