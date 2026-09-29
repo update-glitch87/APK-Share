@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>APK Share - Short Direct Download Links</title>
-    <meta name="version" content="v2.1">
+    <meta name="version" content="v2.2">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -215,6 +215,7 @@
             max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative;
         }
         .admin-modal-content h2 { margin-bottom: 20px; text-align: center; }
         .admin-modal-content input {
@@ -278,14 +279,29 @@
         .file-item .info { flex: 1; min-width: 0; }
         .file-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .file-item .meta { font-size: 11px; color: var(--text2); margin-top: 3px; }
-        .file-item .actions { display: flex; gap: 8px; }
+        .file-item .link-row { margin-top: 5px; }
+        .file-item .link-row a {
+            font-size: 11px;
+            color: var(--accent1);
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .file-item .link-row a:hover { text-decoration: underline; }
+        .file-item .actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: 10px; }
         .file-item .btn-small {
-            padding: 6px 12px;
-            font-size: 12px;
+            padding: 6px 10px;
+            font-size: 11px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
+            white-space: nowrap;
         }
+        .btn-view {
+            background: rgba(16,185,129,0.2);
+            color: var(--success);
+            border: 1px solid var(--success) !important;
+        }
+        .btn-view:hover { background: rgba(16,185,129,0.3); }
     </style>
 </head>
 <body>
@@ -577,15 +593,27 @@
             uploadCard.classList.add('hidden');
             successCard.classList.add('show');
 
+            // Use modern clipboard API
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(data.shortUrl).catch(() => {});
+            }
             shortLink.select();
-            document.execCommand('copy');
         }
 
-        copyBtn.addEventListener('click', () => {
-            shortLink.select();
-            document.execCommand('copy');
-            copyBtn.textContent = '✅ Copied!';
-            setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+        copyBtn.addEventListener('click', async () => {
+            try {
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(shortLink.value);
+                } else {
+                    shortLink.select();
+                    document.execCommand('copy');
+                }
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+            } catch {
+                shortLink.select();
+                document.execCommand('copy');
+            }
         });
 
         downloadBtn.addEventListener('click', () => {
@@ -604,10 +632,16 @@
                     });
                 } catch {}
             } else {
-                shortLink.select();
-                document.execCommand('copy');
-                shareBtn.textContent = '📋 Copied!';
-                setTimeout(() => { shareBtn.textContent = '📤 Share'; }, 2000);
+                try {
+                    if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(currentShortUrl);
+                    } else {
+                        shortLink.select();
+                        document.execCommand('copy');
+                    }
+                    shareBtn.textContent = '📋 Copied!';
+                    setTimeout(() => { shareBtn.textContent = '📤 Share'; }, 2000);
+                } catch {}
             }
         });
 
@@ -682,11 +716,18 @@
 
         async function loadAdminFiles() {
             try {
-                const res = await fetch('/api/admin/files');
+                const res = await fetch('/api/admin/files', {
+                    headers: { 'x-admin-token': adminToken }
+                });
                 const data = await res.json();
 
                 if (res.ok) {
                     displayFiles(data.files);
+                } else if (res.status === 401) {
+                    adminToken = null;
+                    adminPanelCard.classList.remove('show');
+                    uploadCard.classList.remove('hidden');
+                    adminModal.classList.add('show');
                 }
             } catch (err) {
                 console.error('Failed to load files:', err);
@@ -703,17 +744,21 @@
                 return;
             }
 
-            fileList.innerHTML = files.map(file => `
+            fileList.innerHTML = files.map(file => {
+                const link = `${location.origin}/${file.shortId}`;
+                return `
                 <div class="file-item">
                     <div class="info">
                         <div class="name">${file.originalName}</div>
-                        <div class="meta">${formatSize(file.fileSize)} • ${new Date(file.uploadDate).toLocaleString()} • /${file.shortId}</div>
+                        <div class="meta">${formatSize(file.fileSize)} • ${new Date(file.uploadDate).toLocaleString()}</div>
+                        <div class="link-row"><a href="${link}" target="_blank">${link}</a></div>
                     </div>
                     <div class="actions">
+                        <button class="btn-small btn-view" onclick="window.open('${link}', '_blank')">View</button>
                         <button class="btn-small btn-danger" onclick="deleteFile('${file.shortId}')">Delete</button>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         async function deleteFile(shortId) {
@@ -721,7 +766,8 @@
 
             try {
                 const res = await fetch(`/api/admin/delete/${shortId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: { 'x-admin-token': adminToken }
                 });
 
                 const data = await res.json();
@@ -740,11 +786,16 @@
             if (!confirm('Delete ALL files? This cannot be undone!')) return;
 
             try {
-                const res = await fetch('/api/admin/files');
+                const res = await fetch('/api/admin/files', {
+                    headers: { 'x-admin-token': adminToken }
+                });
                 const data = await res.json();
 
                 for (const file of data.files) {
-                    await fetch(`/api/admin/delete/${file.shortId}`, { method: 'DELETE' });
+                    await fetch(`/api/admin/delete/${file.shortId}`, {
+                        method: 'DELETE',
+                        headers: { 'x-admin-token': adminToken }
+                    });
                 }
 
                 loadAdminFiles();

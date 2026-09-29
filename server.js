@@ -15,6 +15,9 @@ const MAX_DISK_USAGE = 400 * 1024 * 1024; // 400MB limit
 const ADMIN_USER = 'sialkwl';
 const ADMIN_PASS = 'Sialkwl@9900';
 
+// In-memory token store
+const adminTokens = new Set();
+
 if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
@@ -53,7 +56,7 @@ function getDirSize(dir) {
 }
 
 function cleanupOldFiles() {
-    const currentSize = getDirSize(UPLOAD_DIR);
+    let currentSize = getDirSize(UPLOAD_DIR);
     if (currentSize <= MAX_DISK_USAGE) return;
 
     console.log(`Disk usage ${currentSize} exceeds limit ${MAX_DISK_USAGE} — cleaning up...`);
@@ -66,7 +69,9 @@ function cleanupOldFiles() {
         if (currentSize <= MAX_DISK_USAGE * 0.8) break;
 
         if (fs.existsSync(file.filePath)) {
+            const fileSize = fs.statSync(file.filePath).size;
             fs.unlinkSync(file.filePath);
+            currentSize -= fileSize;
             console.log(`Deleted old file: ${file.originalName}`);
         }
         delete db[file.shortId];
@@ -112,17 +117,33 @@ const upload = multer({
     }
 });
 
+function requireAdmin(req, res, next) {
+    const token = req.headers['x-admin-token'];
+    if (token && adminTokens.has(token)) {
+        next();
+    } else {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+}
+
 app.post('/api/admin/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && password === ADMIN_PASS) {
         const token = crypto.randomBytes(32).toString('hex');
+        adminTokens.add(token);
         res.json({ success: true, token });
     } else {
         res.status(401).json({ error: 'Invalid credentials' });
     }
 });
 
-app.get('/api/admin/files', (req, res) => {
+app.post('/api/admin/logout', (req, res) => {
+    const token = req.headers['x-admin-token'];
+    if (token) adminTokens.delete(token);
+    res.json({ success: true });
+});
+
+app.get('/api/admin/files', requireAdmin, (req, res) => {
     const files = Object.entries(db).map(([shortId, data]) => ({
         shortId,
         ...data
@@ -130,7 +151,7 @@ app.get('/api/admin/files', (req, res) => {
     res.json({ files });
 });
 
-app.delete('/api/admin/delete/:shortId', (req, res) => {
+app.delete('/api/admin/delete/:shortId', requireAdmin, (req, res) => {
     const { shortId } = req.params;
     const file = db[shortId];
 
