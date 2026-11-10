@@ -1,9 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "vercel_entry.py": {
-      "maxDuration": 60,
-      "memory": 1024
+  "services": {
+    "appstore": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "vercel_entry:app",
+      "installCommand": "pip install -r requirements.txt"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "appstore"
+      }
+    }
+  ]
 }

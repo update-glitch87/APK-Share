@@ -18,3 +18,6 @@ aft.json
 .vscode/
 *.log
 *.zip
+
+.vercel
+.env*
