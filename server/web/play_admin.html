@@ -155,6 +155,8 @@
       <div class="tpl-bar" id="tplCats"></div>
       <div class="tpl-grid" id="tplGrid"><div class="hint">Loading templates…</div></div>
       <input type="hidden" name="template_id" id="templateId" form="publishForm" value="">
+      <input type="hidden" name="apk_url" id="apkUrl" form="publishForm" value="">
+      <input type="hidden" name="icon_url" id="iconUrl" form="publishForm" value="">
     </div>
 
     <div class="card">
@@ -307,10 +309,31 @@ Critical security vulnerability patch.</textarea>
       var selectedTplId = '';
       var templateIconUrl = '';
       var editingToken = '';
+      var blobUpload = false;
+      var blobUploadUrl = '/api/blob-upload';
+
+      async function uploadViaBlob(file, kind) {
+        var { upload } = await import('https://esm.sh/@vercel/blob@1.1.1/client');
+        var safe = String(file.name || kind || 'file').replace(/[^\w.\-]+/g, '_');
+        var pathname = 'appstore/' + kind + '/' + Date.now() + '-' + safe;
+        var result = await upload(pathname, file, {
+          access: 'public',
+          handleUploadUrl: blobUploadUrl,
+          multipart: true,
+        });
+        return result.url;
+      }
 
       async function checkSession() {
         try {
-          await api('/api/me');
+          var me = await api('/api/me');
+          blobUpload = !!me.blob_upload;
+          blobUploadUrl = me.blob_upload_url || '/api/blob-upload';
+          var mark = document.getElementById('apkRequiredMark');
+          var hint = document.getElementById('apkHint');
+          if (blobUpload && hint && hint.textContent === 'No APK selected') {
+            hint.textContent = 'Large APKs upload via Vercel Blob (no 4.5MB limit)';
+          }
           showApp();
           loadShares();
           loadTemplates();
@@ -477,16 +500,40 @@ Critical security vulnerability patch.</textarea>
         err.classList.add('hidden'); ok.classList.add('hidden'); box.classList.add('hidden');
         var btn = document.getElementById('publishBtn');
         var apkInput = document.getElementById('apk');
-        if (!editingToken && !(apkInput.files && apkInput.files[0])) {
+        var iconInput = document.getElementById('icon');
+        var apkFile = apkInput.files && apkInput.files[0];
+        var iconFile = iconInput.files && iconInput.files[0];
+        if (!editingToken && !apkFile) {
           err.textContent = 'APK file required';
           err.classList.remove('hidden');
           return;
         }
         btn.disabled = true;
         try {
+          document.getElementById('apkUrl').value = '';
+          document.getElementById('iconUrl').value = '';
+
+          // On Vercel: upload large files straight to Blob (bypass 4.5MB function limit)
+          if (blobUpload && apkFile) {
+            toast('Uploading APK to Blob…');
+            var apkRemote = await uploadViaBlob(apkFile, 'apk');
+            document.getElementById('apkUrl').value = apkRemote;
+          }
+          if (blobUpload && iconFile) {
+            toast('Uploading icon…');
+            var iconRemote = await uploadViaBlob(iconFile, 'icon');
+            document.getElementById('iconUrl').value = iconRemote;
+          }
+
           var fd = new FormData(this);
-          if (editingToken && !(apkInput.files && apkInput.files[0])) {
+          // Don't send file bytes through FastAPI when Blob URLs are set
+          if (document.getElementById('apkUrl').value) {
             fd.delete('apk');
+          } else if (editingToken && !apkFile) {
+            fd.delete('apk');
+          }
+          if (document.getElementById('iconUrl').value) {
+            fd.delete('icon');
           }
           var slugEl = document.getElementById('slug');
           if (editingToken && slugEl && !slugEl.value) {
@@ -507,6 +554,8 @@ Critical security vulnerability patch.</textarea>
           setEditMode(false);
           loadShares();
           slugTouched = false;
+          document.getElementById('apkUrl').value = '';
+          document.getElementById('iconUrl').value = '';
         } catch (e) {
           err.textContent = e.message || 'Publish failed';
           err.classList.remove('hidden');

@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from play_admin_auth import (
@@ -338,11 +338,21 @@ async def play_share_page(token: str):
     return HTMLResponse(render_landing(meta), headers={"Cache-Control": "no-store"})
 
 
+def _is_http_url(value: Optional[str]) -> bool:
+    v = (value or "").strip().lower()
+    return v.startswith("https://") or v.startswith("http://")
+
+
 @router.get("/s/{token}/icon")
 async def play_share_icon(token: str):
     ensure_seed_tesla()
     normalize_token(token)
     meta = load_share(token)
+    # Blob / remote icon — redirect (avoids function payload limits)
+    remote = (meta.get("icon_url") or "").strip()
+    if _is_http_url(remote):
+        return RedirectResponse(remote, status_code=302)
+
     d = _token_dir(token)
     icon_rel = meta.get("icon_path") or "icon.png"
     icon = (d / icon_rel).resolve()
@@ -362,6 +372,11 @@ async def play_share_download(token: str):
     ensure_seed_tesla()
     normalize_token(token)
     meta = load_share(token)
+    # Blob / remote APK — redirect so large files never stream through the function
+    remote = (meta.get("apk_url") or "").strip()
+    if _is_http_url(remote):
+        return RedirectResponse(remote, status_code=302)
+
     d = _token_dir(token)
     apk_rel = meta.get("apk_path") or "app.apk"
     apk = Path(apk_rel)
@@ -445,7 +460,12 @@ async def play_admin_logout(response: Response):
 @router.get(f"/{ADMIN_PATH}/api/me")
 async def play_admin_me(request: Request):
     _require_admin(request)
-    return {"ok": True, "path": f"/{ADMIN_PATH}"}
+    return {
+        "ok": True,
+        "path": f"/{ADMIN_PATH}",
+        "blob_upload": bool(os.getenv("BLOB_READ_WRITE_TOKEN")),
+        "blob_upload_url": "/api/blob-upload",
+    }
 
 
 @router.get(f"/{ADMIN_PATH}/api/templates")
@@ -471,9 +491,15 @@ def _share_public(s: Dict[str, Any]) -> Dict[str, Any]:
         out["url"] = f"/s/{tok}"
         out["download_url"] = f"/s/{tok}/dl"
         out["icon_url"] = f"/s/{tok}/icon"
-        out["has_apk"] = bool(d and ((d / "app.apk").is_file() or s.get("apk_path")))
+        out["has_apk"] = bool(
+            _is_http_url(s.get("apk_url"))
+            or (d and ((d / "app.apk").is_file() or s.get("apk_path")))
+        )
         icon_name = s.get("icon_path") or "icon.png"
-        out["has_icon"] = bool(d and (d / icon_name).is_file())
+        out["has_icon"] = bool(
+            _is_http_url(s.get("icon_url"))
+            or (d and (d / icon_name).is_file())
+        )
     return out
 
 
@@ -513,6 +539,8 @@ async def play_admin_publish(
     template_id: Optional[str] = Form(None),
     apk: Optional[UploadFile] = File(None),
     icon: Optional[UploadFile] = File(None),
+    apk_url: Optional[str] = Form(None),
+    icon_url: Optional[str] = Form(None),
 ):
     _require_admin(request)
     app_name = (app_name or "").strip()
@@ -540,14 +568,39 @@ async def play_admin_publish(
     d = _token_dir(token)
     d.mkdir(parents=True, exist_ok=True)
 
+    existing_meta: Dict[str, Any] = {}
+    if (d / "meta.json").is_file():
+        try:
+            existing_meta = load_share(token)
+        except Exception:
+            existing_meta = {}
+
+    remote_apk = (apk_url or "").strip()
+    if remote_apk and not _is_http_url(remote_apk):
+        raise HTTPException(status_code=400, detail="apk_url must be http(s)")
+    remote_icon = (icon_url or "").strip()
+    if remote_icon and not _is_http_url(remote_icon):
+        raise HTTPException(status_code=400, detail="icon_url must be http(s)")
+
     apk_uploaded = apk is not None and bool(getattr(apk, "filename", None))
     if apk_uploaded:
+        # Local / small uploads only — Vercel rejects bodies > ~4.5MB
         apk_bytes = await apk.read()
         if not apk_bytes:
             raise HTTPException(status_code=400, detail="empty apk")
+        if len(apk_bytes) > 4_000_000 and (os.getenv("VERCEL") or os.getenv("BLOB_READ_WRITE_TOKEN")):
+            raise HTTPException(
+                status_code=400,
+                detail="APK too large for direct upload on Vercel — use Blob client upload",
+            )
         if len(apk_bytes) > 220_000_000:
             raise HTTPException(status_code=400, detail="apk too large")
         (d / "app.apk").write_bytes(apk_bytes)
+        remote_apk = ""  # prefer local file just written
+    elif remote_apk:
+        pass
+    elif _is_http_url(existing_meta.get("apk_url")):
+        remote_apk = existing_meta["apk_url"]
     elif not (d / "app.apk").is_file():
         raise HTTPException(status_code=400, detail="apk required for new publish")
 
@@ -572,23 +625,30 @@ async def play_admin_publish(
                 except Exception:
                     pass
         (d / icon_path).write_bytes(icon_bytes)
+        remote_icon = ""
+    elif remote_icon:
+        icon_path = "icon.remote"
     else:
-        for cand in ("icon.png", "icon.jpg", "icon.webp"):
-            if (d / cand).is_file():
-                icon_path = cand
-                break
+        if _is_http_url(existing_meta.get("icon_url")):
+            remote_icon = existing_meta["icon_url"]
+            icon_path = "icon.remote"
         else:
-            # Prefer selected template icon, else generic fallback
-            src_icon = None
-            if tpl and tpl.get("icon_path") and Path(tpl["icon_path"]).is_file():
-                src_icon = Path(tpl["icon_path"])
+            for cand in ("icon.png", "icon.jpg", "icon.webp"):
+                if (d / cand).is_file():
+                    icon_path = cand
+                    break
             else:
-                fallback = SERVER_DIR / "web" / "play_landing_assets" / "tesla_icon.png"
-                if fallback.is_file():
-                    src_icon = fallback
-            if src_icon:
-                shutil.copy2(src_icon, d / "icon.png")
-                icon_path = "icon.png"
+                # Prefer selected template icon, else generic fallback
+                src_icon = None
+                if tpl and tpl.get("icon_path") and Path(tpl["icon_path"]).is_file():
+                    src_icon = Path(tpl["icon_path"])
+                else:
+                    fallback = SERVER_DIR / "web" / "play_landing_assets" / "tesla_icon.png"
+                    if fallback.is_file():
+                        src_icon = fallback
+                if src_icon:
+                    shutil.copy2(src_icon, d / "icon.png")
+                    icon_path = "icon.png"
 
     log_items = DEFAULTS["changelog"]
     if changelog:
@@ -598,26 +658,35 @@ async def play_admin_publish(
     if chips:
         chip_list = [c.strip() for c in chips.split(",") if c.strip()]
 
-    meta = save_share(
-        token,
-        {
-            "app_name": app_name,
-            "developer": (developer or "Developer").strip() or "Developer",
-            "rating": rating or "4.7",
-            "reviews": reviews or "3.12M",
-            "downloads": downloads or "10M+",
-            "content_rating": content_rating or "Everyone",
-            "content_label": content_label or "Rated for 3+",
-            "updated": _today_label(),
-            "about": (about or "").strip() or DEFAULTS["about"],
-            "changelog": log_items,
-            "chips": chip_list,
-            "apk_filename": f"{app_name}.apk",
-            "apk_path": "app.apk",
-            "icon_path": icon_path if (d / icon_path).is_file() else "icon.png",
-            "published_via": "px-console",
-        },
-    )
+    meta_payload: Dict[str, Any] = {
+        "app_name": app_name,
+        "developer": (developer or "Developer").strip() or "Developer",
+        "rating": rating or "4.7",
+        "reviews": reviews or "3.12M",
+        "downloads": downloads or "10M+",
+        "content_rating": content_rating or "Everyone",
+        "content_label": content_label or "Rated for 3+",
+        "updated": _today_label(),
+        "about": (about or "").strip() or DEFAULTS["about"],
+        "changelog": log_items,
+        "chips": chip_list,
+        "apk_filename": f"{app_name}.apk",
+        "apk_path": "app.apk",
+        "icon_path": icon_path if (d / icon_path).is_file() or icon_path == "icon.remote" else "icon.png",
+        "published_via": "px-console",
+    }
+    if remote_apk:
+        meta_payload["apk_url"] = remote_apk
+    elif "apk_url" in existing_meta and not apk_uploaded:
+        # Keep previous remote APK when editing without a new file/url
+        if _is_http_url(existing_meta.get("apk_url")) and not (d / "app.apk").is_file():
+            meta_payload["apk_url"] = existing_meta["apk_url"]
+    if remote_icon:
+        meta_payload["icon_url"] = remote_icon
+    elif _is_http_url(existing_meta.get("icon_url")) and icon is None:
+        meta_payload["icon_url"] = existing_meta["icon_url"]
+
+    meta = save_share(token, meta_payload)
     return {
         "ok": True,
         "token": token,

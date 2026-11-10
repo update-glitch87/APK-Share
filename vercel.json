@@ -6,9 +6,22 @@
       "framework": "fastapi",
       "entrypoint": "vercel_entry:app",
       "installCommand": "pip install -r requirements.txt"
+    },
+    "blob": {
+      "root": "blob-api",
+      "framework": null,
+      "installCommand": "npm install"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/blob-upload",
+      "destination": {
+        "type": "service",
+        "service": "blob",
+        "path": "/api/blob-upload"
+      }
+    },
     {
       "source": "/(.*)",
       "destination": {

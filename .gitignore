@@ -9,6 +9,8 @@ venv/
 server/play_shares/
 .aft/
 .vercel/
+blob-api/node_modules/
+.env.local
 LIVE.md
 fly.toml
 railway.toml
