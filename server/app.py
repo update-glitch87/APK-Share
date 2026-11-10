@@ -6,7 +6,7 @@ Run locally:
   pip install -r ../requirements.txt
   uvicorn app:app --host 0.0.0.0 --port 8000
 
-Deploy: fly deploy (see ../README.md).
+Deploy: Vercel (see ../README.md) — entrypoint vercel_entry:app
 """
 
 from __future__ import annotations
@@ -43,13 +43,23 @@ if WEB_DIR.is_dir():
     app.mount("/web", StaticFiles(directory=str(WEB_DIR)), name="web-static")
 
 
+def _host_name() -> str:
+    if os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+        return "vercel"
+    if os.getenv("FLY_APP_NAME"):
+        return "fly"
+    if os.getenv("RENDER"):
+        return "render"
+    return "local"
+
+
 @app.get("/health")
 async def health():
     return {
         "ok": True,
         "service": "appstore",
         "admin": f"/{get_admin_path()}",
-        "host": "fly" if os.getenv("FLY_APP_NAME") else ("render" if os.getenv("RENDER") else "local"),
+        "host": _host_name(),
     }
 
 

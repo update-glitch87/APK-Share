@@ -97,8 +97,15 @@ def issue_session_cookie() -> Tuple[str, dict]:
     sig = hmac.new(_cookie_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     value = f"{payload}|{sig}"
     # Secure cookies on HTTPS hosts (Render / Cloudflare)
-    secure_env = (os.getenv("PLAY_COOKIE_SECURE") or os.getenv("RENDER") or "").strip().lower()
-    secure = secure_env in ("1", "true", "yes", "on") or bool(os.getenv("RENDER"))
+    secure_env = (
+        os.getenv("PLAY_COOKIE_SECURE")
+        or os.getenv("RENDER")
+        or os.getenv("VERCEL")
+        or ""
+    ).strip().lower()
+    secure = secure_env in ("1", "true", "yes", "on") or bool(
+        os.getenv("RENDER") or os.getenv("VERCEL") or os.getenv("VERCEL_ENV")
+    )
     headers = {
         "httponly": True,
         "samesite": "lax",

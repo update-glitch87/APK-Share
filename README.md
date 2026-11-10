@@ -2,29 +2,44 @@
 
 Public `/s/<slug>` landings + hidden `/px-console` publisher.
 
-## Hosting (important)
+## Host on **Vercel** (recommended path)
 
-This app needs **FastAPI + APK upload disk**. It is **not** a good fit for **Vercel / Netlify / Cloudflare Pages** (serverless, no durable APK storage, body/time limits).
+Import this repo at [https://vercel.com/new](https://vercel.com/new).
 
-| Host | Like Vercel? | Fit for AppStore |
-|------|--------------|------------------|
-| **Render free** | Same idea: connect repo → HTTPS URL | **Yes** (best free ongoing). Sleeps ~15 min idle. |
-| Vercel Hobby | Closest UX | **No** for APK publisher |
-| Railway | Similar | Trial expired on your account |
-| Fly.io | CLI deploy | Trial-only ($1) — dropped |
-| aft.page | Drop zip | Temp ~60 min unless claimed — dropped |
+| Setting | Value |
+|---------|--------|
+| Repo | `update-glitch87/APK-Share` |
+| Branch | `ppstore` |
+| Framework | FastAPI (auto) |
+| Entrypoint | `vercel_entry:app` (in `pyproject.toml`) |
+| Root | repo root (`.`) |
 
-**Use Render free** with Public Git Repository (no GitHub App required):
+### Environment variables (Vercel → Settings → Environment Variables)
 
-1. https://dashboard.render.com/web/new → **Public Git Repository**
-2. URL: `https://github.com/update-glitch87/APK-Share`
-3. Branch: `ppstore`
-4. Build: `pip install -r requirements.txt`
-5. Start: `uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir server`
-6. Health: `/health`
-7. Env: `PLAY_ADMIN_PASS`, `PLAY_ADMIN_SECRET`, `PLAY_COOKIE_SECURE=1`, `PLAY_ADMIN_PATH=px-console`
+| Key | Value |
+|-----|--------|
+| `PLAY_ADMIN_PASS` | your publisher password |
+| `PLAY_ADMIN_SECRET` | long random string |
+| `PLAY_ADMIN_PATH` | `px-console` |
+| `PLAY_COOKIE_SECURE` | `1` |
 
-Or use Blueprint from `render.yaml`.
+Optional: `PLAY_SHARES_DIR=/tmp/appstore_shares` (default on Vercel anyway).
+
+### Limits (important)
+
+- Vercel functions are **serverless**. Uploaded APKs live under `/tmp` and can **reset on cold starts**.
+- Very large APK uploads may hit request body limits — keep APKs smaller when possible.
+- After idle, first request may be slower (cold start).
+
+### CLI deploy (optional)
+
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+---
 
 ## Local run
 
@@ -39,3 +54,9 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --app-dir server
 
 - Home: http://127.0.0.1:8000/
 - Publisher: http://127.0.0.1:8000/px-console
+
+---
+
+## Also works on Render
+
+See `render.yaml` if you prefer a free always-ish Python web service (sleeps after idle).

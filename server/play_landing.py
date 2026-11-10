@@ -47,10 +47,17 @@ SERVER_DIR = Path(__file__).resolve().parent
 
 
 def _shares_dir() -> Path:
-    """Allow Render/persistent disk via PLAY_SHARES_DIR (default: ./play_shares)."""
+    """Share storage root.
+
+    - PLAY_SHARES_DIR override always wins
+    - On Vercel, default to /tmp (writable; ephemeral across cold starts)
+    - Else ./play_shares next to server code
+    """
     override = (os.getenv("PLAY_SHARES_DIR") or "").strip()
     if override:
         p = Path(override)
+    elif os.getenv("VERCEL") or os.getenv("VERCEL_ENV"):
+        p = Path("/tmp/appstore_shares")
     else:
         p = SERVER_DIR / "play_shares"
     p.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ venv/
 *.apk
 server/play_shares/
 .aft/
+.vercel/
 LIVE.md
 fly.toml
 railway.toml
