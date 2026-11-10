@@ -356,8 +356,7 @@
         </li>
       </ol>
       <div class="guide-actions">
-        <button class="btn btn-install" id="guideOpenFile" type="button">Open downloaded APK</button>
-        <button class="btn btn-secondary" id="guideClose" type="button">Got it</button>
+        <button class="btn btn-install" id="guideOpenFile" type="button">Open downloaded App</button>
       </div>
     </div>
   </div>
@@ -369,11 +368,11 @@
       var bar = document.getElementById('progressBar');
       var toastEl = document.getElementById('toast');
       var overlay = document.getElementById('guideOverlay');
-      var guideClose = document.getElementById('guideClose');
       var guideOpen = document.getElementById('guideOpenFile');
       var toastTimer;
       var lastObjectUrl = null;
       var lastFileName = 'app.apk';
+      var lastDownloadAbsUrl = '';
 
       window.toast = function (msg) {
         toastEl.textContent = msg;
@@ -406,11 +405,26 @@
         barWrap.setAttribute('aria-hidden', 'true');
       }
 
+      function absUrl(path) {
+        try { return new URL(path, location.href).href; } catch (e) { return path; }
+      }
+
+      function isAndroid() {
+        return /Android/i.test(navigator.userAgent || '');
+      }
+
       function triggerSave(blob, filename) {
         if (lastObjectUrl) {
           try { URL.revokeObjectURL(lastObjectUrl); } catch (e) {}
         }
-        lastObjectUrl = URL.createObjectURL(blob);
+        // Keep APK MIME so Android can offer Install / open from Downloads
+        var typed = blob;
+        try {
+          if (!blob.type || blob.type === 'application/octet-stream') {
+            typed = new Blob([blob], { type: 'application/vnd.android.package-archive' });
+          }
+        } catch (e) { typed = blob; }
+        lastObjectUrl = URL.createObjectURL(typed);
         lastFileName = filename || 'app.apk';
         var a = document.createElement('a');
         a.href = lastObjectUrl;
@@ -421,27 +435,57 @@
         a.remove();
       }
 
+      function openDownloadedApp() {
+        var apkUrl = lastDownloadAbsUrl || (btn && absUrl(btn.getAttribute('data-url') || ''));
+
+        // Mobile Android: open the download / package installer for this app file
+        if (isAndroid() && apkUrl) {
+          var path = apkUrl.replace(/^https?:\/\//i, '');
+          var intentUrl =
+            'intent://' + path +
+            '#Intent;scheme=https;action=android.intent.action.VIEW;' +
+            'type=application/vnd.android.package-archive;' +
+            'S.browser_fallback_url=' + encodeURIComponent(apkUrl) + ';end';
+          // Prefer system handler (Downloads / Package installer)
+          window.location.href = intentUrl;
+          // Fallback: hit the file URL again so Chrome shows the download sheet with Open
+          setTimeout(function () {
+            try { window.location.href = apkUrl; } catch (e) {}
+          }, 700);
+          toast('Opening Downloads… tap the file to install');
+          return;
+        }
+
+        // Desktop / other: re-open saved file or download URL
+        if (lastObjectUrl) {
+          var a = document.createElement('a');
+          a.href = lastObjectUrl;
+          a.download = lastFileName;
+          a.rel = 'noopener';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          toast('Check your Downloads folder');
+          return;
+        }
+        if (apkUrl) {
+          window.location.href = apkUrl;
+          return;
+        }
+        toast('Download the app first');
+      }
+
       function safeName(appName) {
         var base = String(appName || 'app').replace(/[^\w\-]+/g, '_').replace(/^_+|_+$/g, '');
         return (base || 'app') + '.apk';
       }
 
-      if (guideClose) guideClose.addEventListener('click', hideGuide);
       if (overlay) overlay.addEventListener('click', function (e) {
         if (e.target === overlay) hideGuide();
       });
-      if (guideOpen) guideOpen.addEventListener('click', function () {
-        if (!lastObjectUrl) {
-          toast('File already saved in Downloads');
-          return;
-        }
-        var a = document.createElement('a');
-        a.href = lastObjectUrl;
-        a.download = lastFileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        toast('Check notifications / Downloads folder');
+      if (guideOpen) guideOpen.addEventListener('click', function (e) {
+        e.preventDefault();
+        openDownloadedApp();
       });
 
       if (!btn) return;
@@ -456,6 +500,7 @@
 
         var url = btn.getAttribute('data-url');
         if (!url) return;
+        lastDownloadAbsUrl = absUrl(url);
 
         btn.classList.add('is-wait');
         setLabel('Downloading…');
@@ -509,7 +554,7 @@
           a.remove();
           markDownloaded();
           showGuide();
-          toast('Download started — open the APK to install');
+          toast('Download started — tap Open downloaded App');
         };
         xhr.send();
       });
