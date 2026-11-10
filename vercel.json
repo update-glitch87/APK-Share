@@ -9,6 +9,8 @@
     },
     "blob": {
       "root": "blob-api",
+      "framework": "express",
+      "entrypoint": "index.js",
       "installCommand": "npm install"
     }
   },
@@ -17,8 +19,7 @@
       "source": "/api/blob-upload",
       "destination": {
         "type": "service",
-        "service": "blob",
-        "path": "/api/blob-upload"
+        "service": "blob"
       }
     },
     {

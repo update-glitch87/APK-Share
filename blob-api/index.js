@@ -1,7 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import express from "express";
 import { handleUpload } from "@vercel/blob/client";
 
 const COOKIE_NAME = "px_admin";
+const app = express();
+app.use(express.json({ limit: "2mb" }));
 
 function cookieSecret() {
   const env = (process.env.PLAY_ADMIN_SECRET || "").trim();
@@ -28,7 +31,7 @@ function validateSessionCookie(raw) {
 }
 
 function readCookie(req, name) {
-  const header = req.headers.get("cookie") || "";
+  const header = req.headers.cookie || "";
   const parts = header.split(/;\s*/);
   for (const part of parts) {
     const i = part.indexOf("=");
@@ -39,19 +42,29 @@ function readCookie(req, name) {
   return null;
 }
 
-export async function POST(request) {
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, service: "blob" });
+});
+
+async function blobUploadHandler(req, res) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      return Response.json({ error: "BLOB_READ_WRITE_TOKEN not configured" }, { status: 500 });
+      return res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN not configured" });
     }
-    const cookie = readCookie(request, COOKIE_NAME);
+    const cookie = readCookie(req, COOKIE_NAME);
     if (!validateSessionCookie(cookie)) {
-      return Response.json({ error: "unauthorized" }, { status: 401 });
+      return res.status(401).json({ error: "unauthorized" });
     }
 
-    const body = await request.json();
+    // Adapt Express req into Fetch Request for handleUpload
+    const request = new Request("http://local/api/blob-upload", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: req.headers.cookie || "" },
+      body: JSON.stringify(req.body || {}),
+    });
+
     const jsonResponse = await handleUpload({
-      body,
+      body: req.body,
       request,
       onBeforeGenerateToken: async () => ({
         allowedContentTypes: [
@@ -67,15 +80,17 @@ export async function POST(request) {
         addRandomSuffix: true,
         tokenPayload: JSON.stringify({ role: "px-admin" }),
       }),
-      onUploadCompleted: async () => {
-        // Metadata is saved by FastAPI publish after client returns blob.url
-      },
+      onUploadCompleted: async () => {},
     });
-    return Response.json(jsonResponse);
+    return res.json(jsonResponse);
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "upload token failed" },
-      { status: 400 },
-    );
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "upload token failed",
+    });
   }
 }
+
+app.post("/api/blob-upload", blobUploadHandler);
+app.post("/", blobUploadHandler);
+
+export default app;
