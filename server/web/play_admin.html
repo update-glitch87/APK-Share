@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>Publish</title>
+  <title>AppStore Publisher</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -47,7 +47,15 @@
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
     .btn-danger { background: transparent; color: #f28b82; border: 1px solid #5f2b2b; }
+    .btn-sm { height: 34px; padding: 0 12px; font-size: 12px; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
     .btn:disabled { opacity: .55; cursor: wait; }
+    .edit-banner {
+      display: none; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px;
+      background: rgba(26,115,232,.12); border: 1px solid rgba(26,115,232,.35);
+      color: #aecbfa; font-size: 12px;
+    }
+    .edit-banner.on { display: block; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     .preview {
       display: flex; gap: 12px; align-items: center; margin-top: 8px;
@@ -115,7 +123,7 @@
 <body>
   <div id="loginView" class="login-wrap">
     <div class="card login-card">
-      <h1>Publisher</h1>
+      <h1>AppStore</h1>
       <p class="sub">Password required. This page is not linked from the panel.</p>
       <label>Password
         <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
@@ -130,7 +138,7 @@
   <div id="appView" class="wrap hidden">
     <div class="topbar">
       <div>
-        <h1>Play share publisher</h1>
+        <h1>AppStore publisher</h1>
         <p class="sub" style="margin:0">Upload APK + icon → publish → copy link. Rename slug anytime.</p>
       </div>
       <button class="btn btn-secondary" id="logoutBtn" type="button">Lock</button>
@@ -150,7 +158,8 @@
     </div>
 
     <div class="card">
-      <h1 style="font-size:16px;margin-bottom:14px">New publish</h1>
+      <h1 style="font-size:16px;margin-bottom:14px" id="publishTitle">New publish</h1>
+      <div class="edit-banner" id="editBanner">Editing existing share. Leave APK empty to keep the current file. <button type="button" class="btn btn-secondary btn-sm" id="cancelEditBtn" style="margin-left:8px">Cancel edit</button></div>
       <form id="publishForm">
         <div class="row">
           <label>App name *
@@ -170,8 +179,8 @@
           </label>
         </div>
         <div class="row" style="margin-top:12px">
-          <label>APK file *
-            <input name="apk" id="apk" type="file" accept=".apk,application/vnd.android.package-archive" required>
+          <label>APK file <span id="apkRequiredMark">*</span>
+            <input name="apk" id="apk" type="file" accept=".apk,application/vnd.android.package-archive">
           </label>
           <label>Icon (PNG/JPG/WebP)
             <input name="icon" id="icon" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp">
@@ -205,7 +214,7 @@ Critical security vulnerability patch.</textarea>
         </div>
         <div class="actions">
           <button class="btn btn-primary" id="publishBtn" type="submit">Publish</button>
-          <button class="btn btn-secondary" type="reset">Reset</button>
+          <button class="btn btn-secondary" id="resetFormBtn" type="button">Reset</button>
         </div>
         <div class="err hidden" id="publishErr"></div>
         <div class="ok hidden" id="publishOk"></div>
@@ -264,6 +273,17 @@ Critical security vulnerability patch.</textarea>
           .slice(0, 48) || ('app-' + Date.now().toString(36));
       }
 
+      function errText(data, status) {
+        if (!data) return 'HTTP ' + status;
+        var d = data.detail != null ? data.detail : data.message;
+        if (typeof d === 'string') return d;
+        if (Array.isArray(d)) {
+          return d.map(function (x) { return (x && (x.msg || x.message)) || JSON.stringify(x); }).join('; ');
+        }
+        if (d && typeof d === 'object') return JSON.stringify(d);
+        return 'HTTP ' + status;
+      }
+
       async function api(path, opts) {
         var res = await fetch(BASE + path, Object.assign({ credentials: 'same-origin' }, opts || {}));
         var data = null;
@@ -274,7 +294,7 @@ Critical security vulnerability patch.</textarea>
           data = { detail: await res.text() };
         }
         if (!res.ok) {
-          var err = new Error((data && (data.detail || data.message)) || ('HTTP ' + res.status));
+          var err = new Error(errText(data, res.status));
           err.status = res.status;
           err.data = data;
           throw err;
@@ -286,6 +306,7 @@ Critical security vulnerability patch.</textarea>
       var activeCategory = 'all';
       var selectedTplId = '';
       var templateIconUrl = '';
+      var editingToken = '';
 
       async function checkSession() {
         try {
@@ -455,11 +476,25 @@ Critical security vulnerability patch.</textarea>
         var box = document.getElementById('resultBox');
         err.classList.add('hidden'); ok.classList.add('hidden'); box.classList.add('hidden');
         var btn = document.getElementById('publishBtn');
+        var apkInput = document.getElementById('apk');
+        if (!editingToken && !(apkInput.files && apkInput.files[0])) {
+          err.textContent = 'APK file required';
+          err.classList.remove('hidden');
+          return;
+        }
         btn.disabled = true;
         try {
           var fd = new FormData(this);
+          if (editingToken && !(apkInput.files && apkInput.files[0])) {
+            fd.delete('apk');
+          }
+          var slugEl = document.getElementById('slug');
+          if (editingToken && slugEl && !slugEl.value) {
+            slugEl.value = editingToken;
+            fd.set('slug', editingToken);
+          }
           var data = await api('/api/publish', { method: 'POST', body: fd });
-          ok.textContent = 'Published';
+          ok.textContent = editingToken ? 'Updated' : 'Published';
           ok.classList.remove('hidden');
           var abs = location.origin + data.url;
           box.innerHTML = '<span class="pill">live</span> <a href="' + data.url + '" target="_blank" rel="noopener">' + abs + '</a>' +
@@ -468,7 +503,8 @@ Critical security vulnerability patch.</textarea>
           document.getElementById('copyLinkBtn').onclick = function () {
             navigator.clipboard.writeText(abs).then(function () { toast('Link copied'); });
           };
-          toast('Published');
+          toast(editingToken ? 'Saved' : 'Published');
+          setEditMode(false);
           loadShares();
           slugTouched = false;
         } catch (e) {
@@ -480,6 +516,144 @@ Critical security vulnerability patch.</textarea>
       });
 
       document.getElementById('refreshBtn').onclick = loadShares;
+
+      function setEditMode(on, token) {
+        editingToken = on ? (token || '') : '';
+        var banner = document.getElementById('editBanner');
+        var title = document.getElementById('publishTitle');
+        var btn = document.getElementById('publishBtn');
+        var apkInput = document.getElementById('apk');
+        var mark = document.getElementById('apkRequiredMark');
+        if (on) {
+          banner.classList.add('on');
+          title.textContent = 'Edit publish';
+          btn.textContent = 'Save changes';
+          apkInput.required = false;
+          mark.style.display = 'none';
+        } else {
+          banner.classList.remove('on');
+          title.textContent = 'New publish';
+          btn.textContent = 'Publish';
+          apkInput.required = true;
+          mark.style.display = '';
+        }
+      }
+
+      function fillFormFromShare(s) {
+        var form = document.getElementById('publishForm');
+        form.app_name.value = s.app_name || '';
+        form.developer.value = s.developer || 'Developer';
+        form.slug.value = s.token || '';
+        form.rating.value = s.rating || '4.7';
+        form.reviews.value = s.reviews || '3.12M';
+        form.downloads.value = s.downloads || '10M+';
+        form.content_rating.value = s.content_rating || 'Everyone';
+        form.about.value = s.about || '';
+        form.changelog.value = Array.isArray(s.changelog) ? s.changelog.join('\n') : (s.changelog || '');
+        form.chips.value = Array.isArray(s.chips) ? s.chips.join(', ') : (s.chips || '');
+        document.getElementById('templateId').value = '';
+        selectedTplId = '';
+        slugTouched = true;
+        var img = document.getElementById('iconPreview');
+        if (s.icon_url) {
+          img.src = s.icon_url + '?t=' + Date.now();
+          img.classList.remove('hidden');
+        }
+        document.getElementById('apkHint').textContent = s.has_apk
+          ? 'Keeping current APK (upload a new file to replace)'
+          : 'No APK on this share — upload required';
+        document.getElementById('apk').value = '';
+        document.getElementById('icon').value = '';
+        setEditMode(true, s.token);
+        document.getElementById('publishForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      async function startEdit(tok) {
+        try {
+          var data = await api('/api/shares/' + encodeURIComponent(tok));
+          fillFormFromShare(data.share || {});
+          toast('Loaded for edit');
+        } catch (e) {
+          toast(e.message || 'Edit failed');
+        }
+      }
+
+      async function doRename(oldTok) {
+        var next = prompt('New slug for /s/…', oldTok);
+        if (!next || next === oldTok) return;
+        try {
+          var data = await api('/api/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from_token: oldTok, to_token: next })
+          });
+          toast('Renamed → /s/' + data.token);
+          if (editingToken === oldTok) setEditMode(true, data.token);
+          loadShares();
+        } catch (e) { toast(e.message || 'Rename failed'); }
+      }
+
+      async function doDelete(tok) {
+        if (!confirm('Delete /s/' + tok + ' permanently?')) return;
+        try {
+          try {
+            await api('/api/shares/' + encodeURIComponent(tok), { method: 'DELETE' });
+          } catch (e1) {
+            // Fallback if DELETE method blocked
+            await api('/api/shares/' + encodeURIComponent(tok) + '/delete', { method: 'POST' });
+          }
+          toast('Deleted');
+          if (editingToken === tok) {
+            setEditMode(false);
+            document.getElementById('publishForm').reset();
+            document.getElementById('iconPreview').classList.add('hidden');
+            document.getElementById('apkHint').textContent = 'No APK selected';
+          }
+          loadShares();
+        } catch (e) { toast(e.message || 'Delete failed'); }
+      }
+
+      document.getElementById('cancelEditBtn').onclick = function () {
+        setEditMode(false);
+        document.getElementById('publishForm').reset();
+        document.getElementById('developer').value = 'Developer';
+        document.getElementById('iconPreview').classList.add('hidden');
+        document.getElementById('apkHint').textContent = 'No APK selected';
+        slugTouched = false;
+      };
+
+      document.getElementById('resetFormBtn').onclick = function () {
+        document.getElementById('publishForm').reset();
+        document.getElementById('developer').value = 'Developer';
+        document.getElementById('iconPreview').classList.add('hidden');
+        document.getElementById('apkHint').textContent = 'No APK selected';
+        document.getElementById('templateId').value = '';
+        selectedTplId = '';
+        slugTouched = false;
+        setEditMode(false);
+      };
+
+      document.getElementById('shareRows').addEventListener('click', function (ev) {
+        var t = ev.target.closest('[data-act]');
+        if (!t) return;
+        var act = t.getAttribute('data-act');
+        var tok = t.getAttribute('data-tok');
+        if (!tok) return;
+        if (act === 'copy') {
+          var url = location.origin + '/s/' + tok;
+          navigator.clipboard.writeText(url).then(function () { toast('Copied'); }).catch(function () {
+            prompt('Copy link:', url);
+          });
+        } else if (act === 'open') {
+          window.open('/s/' + encodeURIComponent(tok), '_blank', 'noopener');
+        } else if (act === 'edit') {
+          startEdit(tok);
+        } else if (act === 'rename') {
+          doRename(tok);
+        } else if (act === 'delete') {
+          doDelete(tok);
+        }
+      });
 
       async function loadShares() {
         var tbody = document.getElementById('shareRows');
@@ -498,45 +672,14 @@ Critical security vulnerability patch.</textarea>
               '<td><strong>' + esc(name) + '</strong><div class="hint">' + esc(s.developer || '') + '</div></td>' +
               '<td><a href="/s/' + encodeURIComponent(tok) + '" target="_blank" rel="noopener">/s/' + esc(tok) + '</a></td>' +
               '<td>' + hasApk + '</td>' +
-              '<td style="white-space:nowrap">' +
-                '<button class="btn btn-secondary" data-copy="' + esc(tok) + '" type="button">Copy</button> ' +
-                '<button class="btn btn-secondary" data-rename="' + esc(tok) + '" type="button">Rename</button> ' +
-                '<button class="btn btn-danger" data-del="' + esc(tok) + '" type="button">Delete</button>' +
-              '</td></tr>';
+              '<td><div class="row-actions">' +
+                '<button class="btn btn-secondary btn-sm" data-act="open" data-tok="' + esc(tok) + '" type="button">Open</button>' +
+                '<button class="btn btn-secondary btn-sm" data-act="copy" data-tok="' + esc(tok) + '" type="button">Copy</button>' +
+                '<button class="btn btn-secondary btn-sm" data-act="edit" data-tok="' + esc(tok) + '" type="button">Edit</button>' +
+                '<button class="btn btn-secondary btn-sm" data-act="rename" data-tok="' + esc(tok) + '" type="button">Rename</button>' +
+                '<button class="btn btn-danger btn-sm" data-act="delete" data-tok="' + esc(tok) + '" type="button">Delete</button>' +
+              '</div></td></tr>';
           }).join('');
-          tbody.querySelectorAll('[data-copy]').forEach(function (b) {
-            b.onclick = function () {
-              var url = location.origin + '/s/' + b.getAttribute('data-copy');
-              navigator.clipboard.writeText(url).then(function () { toast('Copied'); });
-            };
-          });
-          tbody.querySelectorAll('[data-rename]').forEach(function (b) {
-            b.onclick = async function () {
-              var oldTok = b.getAttribute('data-rename');
-              var next = prompt('New slug for /s/…', oldTok);
-              if (!next || next === oldTok) return;
-              try {
-                var data = await api('/api/rename', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ from_token: oldTok, to_token: next })
-                });
-                toast('Renamed → /s/' + data.token);
-                loadShares();
-              } catch (e) { toast(e.message || 'Rename failed'); }
-            };
-          });
-          tbody.querySelectorAll('[data-del]').forEach(function (b) {
-            b.onclick = async function () {
-              var tok = b.getAttribute('data-del');
-              if (!confirm('Delete /s/' + tok + ' ?')) return;
-              try {
-                await api('/api/shares/' + encodeURIComponent(tok), { method: 'DELETE' });
-                toast('Deleted');
-                loadShares();
-              } catch (e) { toast(e.message || 'Delete failed'); }
-            };
-          });
         } catch (e) {
           if (e.status === 401) showLogin();
           else tbody.innerHTML = '<tr><td colspan="4" class="err">' + esc(e.message) + '</td></tr>';
@@ -549,6 +692,7 @@ Critical security vulnerability patch.</textarea>
           .replace(/"/g, '&quot;');
       }
 
+      setEditMode(false);
       checkSession();
     })();
   </script>

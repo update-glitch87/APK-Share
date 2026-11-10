@@ -125,6 +125,11 @@
     .btn-install.is-wait {
       background: #e8eaed; color: #9aa0a6; pointer-events: none; box-shadow: none;
     }
+    .btn-install.is-done {
+      background: #e8f0fe; color: #1967d2; box-shadow: none;
+      border: 1px solid #d2e3fc;
+    }
+    .btn-install.is-done:hover { background: #d2e3fc; }
     .btn-install .spin {
       width: 16px; height: 16px; border: 2px solid #c4c7c5;
       border-top-color: #5f6368; border-radius: 50%;
@@ -140,64 +145,47 @@
     .progress.on { display: block; }
     .progress > i {
       display: block; height: 100%; width: 0%; background: var(--blue);
-      border-radius: inherit; transition: width .25s ease;
+      border-radius: inherit; transition: width .2s ease;
     }
-    .shots { margin-top: 26px; }
-    .shots-head {
-      display: flex; align-items: baseline; justify-content: space-between;
-      margin-bottom: 12px;
+    .guide-overlay {
+      display: none; position: fixed; inset: 0; z-index: 80;
+      background: rgba(32,33,36,.55); padding: 16px;
+      align-items: flex-end; justify-content: center;
     }
-    .shots-head h2 { margin: 0; }
-    .shots-head span { font-size: 12px; color: var(--faint); }
-    .shots-row {
-      display: grid; grid-auto-flow: column; grid-auto-columns: 42%;
-      gap: 10px; overflow-x: auto; padding-bottom: 4px;
-      scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
+    .guide-overlay.on { display: flex; }
+    .guide {
+      width: 100%; max-width: 420px; background: #fff;
+      border-radius: 20px 20px 16px 16px; padding: 20px 18px 18px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.28);
+      max-height: min(88dvh, 640px); overflow: auto;
     }
-    .shots-row::-webkit-scrollbar { display: none; }
-    .shot {
-      scroll-snap-align: start; aspect-ratio: 9/16; border-radius: 14px;
-      border: 1px solid #2a2a2a; position: relative; overflow: hidden;
-      background:
-        radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.14), transparent 55%),
-        linear-gradient(165deg, #111 0%, #2b2b2b 42%, #0b0b0b 100%);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    .guide h3 {
+      margin: 0 0 6px; font-size: 18px; font-weight: 700; letter-spacing: -.2px;
     }
-    .shot:nth-child(2) {
-      background:
-        radial-gradient(100% 70% at 80% 10%, rgba(204,0,0,.38), transparent 50%),
-        linear-gradient(165deg, #1a1a1a 0%, #333 45%, #0d0d0d 100%);
+    .guide .sub {
+      margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.45;
     }
-    .shot:nth-child(3) {
-      background:
-        radial-gradient(90% 60% at 50% 100%, rgba(232,232,232,.16), transparent 55%),
-        linear-gradient(165deg, #151515 0%, #2a2a2a 50%, #101010 100%);
+    .guide ol {
+      margin: 0; padding: 0; list-style: none; display: grid; gap: 10px;
     }
-    .shot::before {
-      content: ""; position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
-      width: 34%; height: 5px; border-radius: 999px; background: rgba(255,255,255,.16);
+    .guide li {
+      display: grid; grid-template-columns: 28px 1fr; gap: 10px;
+      align-items: start; padding: 12px; border: 1px solid var(--line);
+      border-radius: 14px; background: var(--card);
     }
-    .shot .ui {
-      position: absolute; left: 12px; right: 12px; top: 28px; bottom: 36px;
-      display: grid; align-content: start; gap: 10px;
+    .guide .n {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--blue); color: #fff; font-size: 13px; font-weight: 700;
+      display: grid; place-items: center;
     }
-    .shot .ui .line {
-      height: 8px; border-radius: 999px; background: rgba(255,255,255,.14);
+    .guide li strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .guide li span { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .guide-actions {
+      display: grid; gap: 8px; margin-top: 16px;
     }
-    .shot .ui .line.short { width: 55%; }
-    .shot .ui .card {
-      height: 46%; margin-top: 8px; border-radius: 12px;
-      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08);
-    }
-    .shot .ui .pill {
-      width: 42%; height: 18px; border-radius: 999px; margin-top: 8px;
-      background: rgba(204,0,0,.55);
-    }
-    .shot::after {
-      content: attr(data-label); position: absolute; inset: auto 10px 12px 10px;
-      color: rgba(255,255,255,.78); font-size: 11px; font-weight: 500;
-      letter-spacing: .2px;
+    .guide-actions .btn { width: 100%; }
+    .guide-actions .btn-secondary {
+      background: #fff; color: var(--blue); border: 1px solid var(--line-strong);
     }
     h2 { font-size: 18px; margin: 28px 0 10px; font-weight: 700; letter-spacing: -.1px; }
     .updated { color: var(--faint); font-size: 12px; margin: 0 0 12px; }
@@ -292,30 +280,12 @@
 
         <div class="actions">
           <a class="btn btn-more" href="#about">More info</a>
-          <a class="btn btn-install" id="installBtn" href="{{DOWNLOAD_URL}}" download>
+          <button class="btn btn-install" id="installBtn" type="button" data-url="{{DOWNLOAD_URL}}" data-name="{{APP_NAME}}">
             <span class="spin" aria-hidden="true"></span>
             <span class="label">Install</span>
-          </a>
+          </button>
         </div>
         <div class="progress" id="progress" aria-hidden="true"><i id="progressBar"></i></div>
-
-        <section class="shots" aria-label="Screenshots">
-          <div class="shots-head">
-            <h2>Screenshots</h2>
-            <span>Swipe</span>
-          </div>
-          <div class="shots-row">
-            <div class="shot" data-label="Home">
-              <div class="ui" aria-hidden="true"><div class="line"></div><div class="line short"></div><div class="card"></div><div class="pill"></div></div>
-            </div>
-            <div class="shot" data-label="Controls">
-              <div class="ui" aria-hidden="true"><div class="line short"></div><div class="card"></div><div class="line"></div><div class="line short"></div></div>
-            </div>
-            <div class="shot" data-label="Status">
-              <div class="ui" aria-hidden="true"><div class="line"></div><div class="card"></div><div class="pill"></div><div class="line short"></div></div>
-            </div>
-          </div>
-        </section>
 
         <h2>Ratings and reviews</h2>
         <div class="rating-card">
@@ -358,42 +328,190 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div class="guide-overlay" id="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
+    <div class="guide">
+      <h3 id="guideTitle">Install the APK</h3>
+      <p class="sub">Download finished. Follow these steps on your phone:</p>
+      <ol>
+        <li>
+          <span class="n">1</span>
+          <div>
+            <strong>Open the downloaded file</strong>
+            <span>Pull down notifications → tap the APK, or open <b>Files / Downloads</b>.</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <div>
+            <strong>Allow install from this source</strong>
+            <span>If Android asks, tap <b>Settings</b> → enable <b>Allow from this source</b> → go back.</span>
+          </div>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <div>
+            <strong>Tap Install</strong>
+            <span>Wait for “App installed”, then open the app.</span>
+          </div>
+        </li>
+      </ol>
+      <div class="guide-actions">
+        <button class="btn btn-install" id="guideOpenFile" type="button">Open downloaded APK</button>
+        <button class="btn btn-secondary" id="guideClose" type="button">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function () {
       var btn = document.getElementById('installBtn');
       var barWrap = document.getElementById('progress');
       var bar = document.getElementById('progressBar');
       var toastEl = document.getElementById('toast');
+      var overlay = document.getElementById('guideOverlay');
+      var guideClose = document.getElementById('guideClose');
+      var guideOpen = document.getElementById('guideOpenFile');
       var toastTimer;
+      var lastObjectUrl = null;
+      var lastFileName = 'app.apk';
 
       window.toast = function (msg) {
         toastEl.textContent = msg;
         toastEl.classList.add('on');
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2200);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2600);
       };
+
+      function setLabel(text) {
+        var label = btn.querySelector('.label');
+        if (label) label.textContent = text;
+      }
+
+      function showGuide() {
+        overlay.hidden = false;
+        overlay.classList.add('on');
+      }
+
+      function hideGuide() {
+        overlay.classList.remove('on');
+        overlay.hidden = true;
+      }
+
+      function markDownloaded() {
+        btn.classList.remove('is-wait');
+        btn.classList.add('is-done');
+        setLabel('Downloaded');
+        barWrap.classList.remove('on');
+        bar.style.width = '0%';
+        barWrap.setAttribute('aria-hidden', 'true');
+      }
+
+      function triggerSave(blob, filename) {
+        if (lastObjectUrl) {
+          try { URL.revokeObjectURL(lastObjectUrl); } catch (e) {}
+        }
+        lastObjectUrl = URL.createObjectURL(blob);
+        lastFileName = filename || 'app.apk';
+        var a = document.createElement('a');
+        a.href = lastObjectUrl;
+        a.download = lastFileName;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      function safeName(appName) {
+        var base = String(appName || 'app').replace(/[^\w\-]+/g, '_').replace(/^_+|_+$/g, '');
+        return (base || 'app') + '.apk';
+      }
+
+      if (guideClose) guideClose.addEventListener('click', hideGuide);
+      if (overlay) overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) hideGuide();
+      });
+      if (guideOpen) guideOpen.addEventListener('click', function () {
+        if (!lastObjectUrl) {
+          toast('File already saved in Downloads');
+          return;
+        }
+        var a = document.createElement('a');
+        a.href = lastObjectUrl;
+        a.download = lastFileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast('Check notifications / Downloads folder');
+      });
 
       if (!btn) return;
       btn.addEventListener('click', function () {
         if (btn.classList.contains('is-wait')) return;
+
+        // Already downloaded → open install guide again
+        if (btn.classList.contains('is-done')) {
+          showGuide();
+          return;
+        }
+
+        var url = btn.getAttribute('data-url');
+        if (!url) return;
+
         btn.classList.add('is-wait');
+        setLabel('Downloading…');
         barWrap.classList.add('on');
-        bar.style.width = '8%';
-        var p = 8;
-        var tick = setInterval(function () {
-          p += Math.max(2, (92 - p) * 0.18);
-          if (p >= 92) { p = 92; clearInterval(tick); }
-          bar.style.width = p.toFixed(1) + '%';
-        }, 120);
-        setTimeout(function () {
-          bar.style.width = '100%';
-          toast('Downloading… open the file to install');
-          setTimeout(function () {
+        barWrap.setAttribute('aria-hidden', 'false');
+        bar.style.width = '4%';
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'blob';
+        xhr.onprogress = function (ev) {
+          if (ev.lengthComputable && ev.total > 0) {
+            var pct = Math.max(4, Math.min(99, (ev.loaded / ev.total) * 100));
+            bar.style.width = pct.toFixed(1) + '%';
+          } else {
+            var cur = parseFloat(bar.style.width) || 4;
+            bar.style.width = Math.min(90, cur + 3) + '%';
+          }
+        };
+        xhr.onload = function () {
+          if (xhr.status < 200 || xhr.status >= 300) {
             btn.classList.remove('is-wait');
+            setLabel('Install');
             barWrap.classList.remove('on');
-            bar.style.width = '0%';
-          }, 1600);
-        }, 900);
+            toast('Download failed. Try again.');
+            return;
+          }
+          bar.style.width = '100%';
+          var blob = xhr.response;
+          var filename = safeName(btn.getAttribute('data-name'));
+          var disp = xhr.getResponseHeader('Content-Disposition') || '';
+          var m = /filename\*=UTF-8''([^;]+)|filename=\"?([^\";]+)\"?/i.exec(disp);
+          if (m) {
+            try { filename = decodeURIComponent((m[1] || m[2] || filename).trim()); } catch (e) {}
+          }
+          triggerSave(blob, filename);
+          markDownloaded();
+          toast('Downloaded — follow the install steps');
+          showGuide();
+        };
+        xhr.onerror = function () {
+          // Fallback: navigate download (browser handles file)
+          btn.classList.remove('is-wait');
+          setLabel('Install');
+          barWrap.classList.remove('on');
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = safeName(btn.getAttribute('data-name'));
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          markDownloaded();
+          showGuide();
+          toast('Download started — open the APK to install');
+        };
+        xhr.send();
       });
     })();
   </script>

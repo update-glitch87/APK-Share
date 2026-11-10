@@ -132,6 +132,26 @@ def rename_share(from_token: str, to_token: str) -> Dict[str, Any]:
     return meta
 
 
+def delete_share(token: str) -> None:
+    safe = normalize_token(token)
+    d = SHARES_DIR / safe
+    if not d.exists():
+        raise HTTPException(status_code=404, detail="share not found")
+    # Best-effort unlock on Windows before rmtree
+    for p in d.rglob("*"):
+        if p.is_file():
+            try:
+                p.chmod(0o666)
+            except Exception:
+                pass
+    shutil.rmtree(d, ignore_errors=True)
+    if d.exists():
+        # Retry once
+        shutil.rmtree(d, ignore_errors=True)
+    if d.exists():
+        raise HTTPException(status_code=500, detail="could not delete share files (locked?)")
+
+
 def _meta_path(token: str) -> Path:
     return _token_dir(token) / "meta.json"
 
@@ -436,23 +456,37 @@ async def play_admin_random_template(request: Request, category: Optional[str] =
     return {"template": random_template(category)}
 
 
+def _share_public(s: Dict[str, Any]) -> Dict[str, Any]:
+    tok = s.get("token") or ""
+    d = SHARES_DIR / tok if tok else None
+    out = dict(s)
+    if tok:
+        out["url"] = f"/s/{tok}"
+        out["download_url"] = f"/s/{tok}/dl"
+        out["icon_url"] = f"/s/{tok}/icon"
+        out["has_apk"] = bool(d and ((d / "app.apk").is_file() or s.get("apk_path")))
+        icon_name = s.get("icon_path") or "icon.png"
+        out["has_icon"] = bool(d and (d / icon_name).is_file())
+    return out
+
+
 @router.get(f"/{ADMIN_PATH}/api/shares")
 async def play_admin_list_shares(request: Request):
     _require_admin(request)
     ensure_seed_tesla()
     out = []
     for s in list_shares():
-        tok = s.get("token")
-        if not tok:
+        if not s.get("token"):
             continue
-        d = SHARES_DIR / tok
-        s["url"] = f"/s/{tok}"
-        s["download_url"] = f"/s/{tok}/dl"
-        s["icon_url"] = f"/s/{tok}/icon"
-        s["has_apk"] = (d / "app.apk").is_file() or bool(s.get("apk_path"))
-        s["has_icon"] = (d / (s.get("icon_path") or "icon.png")).is_file()
-        out.append(s)
+        out.append(_share_public(s))
     return {"shares": out}
+
+
+@router.get(f"/{ADMIN_PATH}/api/shares/{{token}}")
+async def play_admin_get_share(token: str, request: Request):
+    _require_admin(request)
+    meta = load_share(token)
+    return {"ok": True, "share": _share_public(meta)}
 
 
 @router.post(f"/{ADMIN_PATH}/api/publish")
@@ -470,7 +504,7 @@ async def play_admin_publish(
     changelog: Optional[str] = Form(None),
     chips: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
-    apk: UploadFile = File(...),
+    apk: Optional[UploadFile] = File(None),
     icon: Optional[UploadFile] = File(None),
 ):
     _require_admin(request)
@@ -497,17 +531,18 @@ async def play_admin_publish(
 
     token = normalize_token(slug.strip() if slug and slug.strip() else slugify(app_name))
     d = _token_dir(token)
-    if (d / "meta.json").is_file():
-        # Allow overwrite publish to same slug (update listing)
-        pass
     d.mkdir(parents=True, exist_ok=True)
 
-    apk_bytes = await apk.read()
-    if not apk_bytes:
-        raise HTTPException(status_code=400, detail="empty apk")
-    if len(apk_bytes) > 220_000_000:
-        raise HTTPException(status_code=400, detail="apk too large")
-    (d / "app.apk").write_bytes(apk_bytes)
+    apk_uploaded = apk is not None and bool(getattr(apk, "filename", None))
+    if apk_uploaded:
+        apk_bytes = await apk.read()
+        if not apk_bytes:
+            raise HTTPException(status_code=400, detail="empty apk")
+        if len(apk_bytes) > 220_000_000:
+            raise HTTPException(status_code=400, detail="apk too large")
+        (d / "app.apk").write_bytes(apk_bytes)
+    elif not (d / "app.apk").is_file():
+        raise HTTPException(status_code=400, detail="apk required for new publish")
 
     icon_path = "icon.png"
     if icon is not None and icon.filename:
@@ -601,11 +636,16 @@ async def play_admin_rename(request: Request, body: AdminRenameBody):
 @router.delete(f"/{ADMIN_PATH}/api/shares/{{token}}")
 async def play_admin_delete(token: str, request: Request):
     _require_admin(request)
-    d = _token_dir(token)
-    if not d.exists():
-        raise HTTPException(status_code=404, detail="share not found")
-    shutil.rmtree(d, ignore_errors=True)
-    return {"ok": True}
+    delete_share(token)
+    return {"ok": True, "deleted": token}
+
+
+@router.post(f"/{ADMIN_PATH}/api/shares/{{token}}/delete")
+async def play_admin_delete_post(token: str, request: Request):
+    """POST fallback when DELETE is blocked by a proxy."""
+    _require_admin(request)
+    delete_share(token)
+    return {"ok": True, "deleted": token}
 
 
 def register_operator_routes(app, get_current_user, get_db):

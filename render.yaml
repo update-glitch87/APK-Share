@@ -1,10 +1,9 @@
-# Render Blueprint — free web service for PPstore
-# Dashboard: New → Blueprint → connect this repo
+# Render Blueprint — optional (primary host is Fly.io AppStore)
 # Docs: https://render.com/docs/blueprint-spec
 
 services:
   - type: web
-    name: ppstore
+    name: appstore
     runtime: python
     plan: free
     rootDir: .

@@ -1,7 +1,0 @@
-{
-  "path": "px-console",
-  "password_salt": "cdf2493c0ed20752cc627e5990b4da91",
-  "password_hash": "6230f19d7a00e5d8f615b1bf42e64dcdcac23c81d5ddaed99cbee40eb5dfeab7",
-  "cookie_secret": "fc954143b811ef4a648e7a4e82f368b40b22d8bb0036e2a4e7fc0569693bf2a9",
-  "created_at": "2026-11-09T11:35:55Z"
-}
