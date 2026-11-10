@@ -309,8 +309,10 @@ Critical security vulnerability patch.</textarea>
       var selectedTplId = '';
       var templateIconUrl = '';
       var editingToken = '';
-      var blobUpload = false;
+      // Default on for Vercel hosts so large APKs never go through the 4.5MB function body
+      var blobUpload = /\.vercel\.app$/i.test(location.hostname) || location.hostname === 'localhost';
       var blobUploadUrl = '/api/blob-upload';
+      var MAX_DIRECT_BYTES = 3.5 * 1024 * 1024;
 
       async function uploadViaBlob(file, kind) {
         var { upload } = await import('https://esm.sh/@vercel/blob@1.1.1/client');
@@ -324,16 +326,31 @@ Critical security vulnerability patch.</textarea>
         return result.url;
       }
 
-      async function checkSession() {
+      function shouldUseBlob(file) {
+        if (!file) return false;
+        if (blobUpload) return true;
+        // Never POST >3.5MB through FastAPI on Vercel (FUNCTION_PAYLOAD_TOO_LARGE)
+        return file.size > MAX_DIRECT_BYTES;
+      }
+
+      async function refreshBlobFlags() {
         try {
           var me = await api('/api/me');
-          blobUpload = !!me.blob_upload;
-          blobUploadUrl = me.blob_upload_url || '/api/blob-upload';
-          var mark = document.getElementById('apkRequiredMark');
+          if (me && me.blob_upload != null) blobUpload = !!me.blob_upload || blobUpload;
+          if (me && me.blob_upload_url) blobUploadUrl = me.blob_upload_url;
           var hint = document.getElementById('apkHint');
           if (blobUpload && hint && hint.textContent === 'No APK selected') {
             hint.textContent = 'Large APKs upload via Vercel Blob (no 4.5MB limit)';
           }
+        } catch (e) {
+          // keep hostname default
+        }
+      }
+
+      async function checkSession() {
+        try {
+          await api('/api/me');
+          await refreshBlobFlags();
           showApp();
           loadShares();
           loadTemplates();
@@ -449,6 +466,7 @@ Critical security vulnerability patch.</textarea>
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: document.getElementById('loginPass').value })
           });
+          await refreshBlobFlags();
           showApp();
           loadShares();
           loadTemplates();
@@ -513,26 +531,30 @@ Critical security vulnerability patch.</textarea>
           document.getElementById('apkUrl').value = '';
           document.getElementById('iconUrl').value = '';
 
-          // On Vercel: upload large files straight to Blob (bypass 4.5MB function limit)
-          if (blobUpload && apkFile) {
+          // Upload APK/icon straight to Blob (bypass Vercel 4.5MB function body limit)
+          if (shouldUseBlob(apkFile)) {
             toast('Uploading APK to Blob…');
             var apkRemote = await uploadViaBlob(apkFile, 'apk');
             document.getElementById('apkUrl').value = apkRemote;
           }
-          if (blobUpload && iconFile) {
+          if (shouldUseBlob(iconFile)) {
             toast('Uploading icon…');
             var iconRemote = await uploadViaBlob(iconFile, 'icon');
             document.getElementById('iconUrl').value = iconRemote;
           }
 
           var fd = new FormData(this);
-          // Don't send file bytes through FastAPI when Blob URLs are set
+          // Never send file bytes through FastAPI when Blob URLs are set (or over limit)
           if (document.getElementById('apkUrl').value) {
             fd.delete('apk');
           } else if (editingToken && !apkFile) {
             fd.delete('apk');
+          } else if (apkFile && apkFile.size > MAX_DIRECT_BYTES) {
+            throw new Error('APK too large for direct upload — Blob upload required but failed');
           }
           if (document.getElementById('iconUrl').value) {
+            fd.delete('icon');
+          } else if (iconFile && iconFile.size > MAX_DIRECT_BYTES) {
             fd.delete('icon');
           }
           var slugEl = document.getElementById('slug');

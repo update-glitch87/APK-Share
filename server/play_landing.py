@@ -460,10 +460,13 @@ async def play_admin_logout(response: Response):
 @router.get(f"/{ADMIN_PATH}/api/me")
 async def play_admin_me(request: Request):
     _require_admin(request)
+    # Prefer Blob client uploads on Vercel to avoid FUNCTION_PAYLOAD_TOO_LARGE (~4.5MB).
+    on_vercel = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+    blob_ready = bool(os.getenv("BLOB_READ_WRITE_TOKEN")) or on_vercel
     return {
         "ok": True,
         "path": f"/{ADMIN_PATH}",
-        "blob_upload": bool(os.getenv("BLOB_READ_WRITE_TOKEN")),
+        "blob_upload": blob_ready,
         "blob_upload_url": "/api/blob-upload",
     }
 
