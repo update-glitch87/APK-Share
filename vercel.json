@@ -9,7 +9,6 @@
     },
     "blob": {
       "root": "blob-api",
-      "framework": null,
       "installCommand": "npm install"
     }
   },
