@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Publish</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --line: #2a2f3a;
+      --text: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #01875f;
+      --accent2: #1a73e8;
+      --danger: #d93025;
+      --ok: #34a853;
+      --field: #0c0e12;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; background: var(--bg); color: var(--text);
+      font: 14px/1.45 system-ui, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { font-size: 20px; font-weight: 650; margin: 0 0 6px; }
+    .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 14px; padding: 18px; margin-bottom: 16px;
+    }
+    .row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+    label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+    input, textarea, select {
+      width: 100%; background: var(--field); color: var(--text);
+      border: 1px solid var(--line); border-radius: 10px;
+      padding: 10px 12px; font: inherit;
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    input:focus, textarea:focus { outline: 2px solid rgba(1,135,95,.35); border-color: var(--accent); }
+    .btn {
+      border: 0; border-radius: 999px; height: 42px; padding: 0 18px;
+      font-weight: 700; cursor: pointer; font: inherit;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .btn-danger { background: transparent; color: #f28b82; border: 1px solid #5f2b2b; }
+    .btn:disabled { opacity: .55; cursor: wait; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .preview {
+      display: flex; gap: 12px; align-items: center; margin-top: 8px;
+    }
+    .preview img {
+      width: 64px; height: 64px; border-radius: 14px; object-fit: cover;
+      background: #222; border: 1px solid var(--line);
+    }
+    .linkbox {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      background: var(--field); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; word-break: break-all;
+    }
+    .linkbox a { color: #8ab4f8; }
+    .toast {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      background: #323232; color: #fff; padding: 10px 14px; border-radius: 8px;
+      opacity: 0; pointer-events: none; transition: .2s; z-index: 20;
+      max-width: calc(100% - 24px);
+    }
+    .toast.on { opacity: 1; }
+    .login-wrap {
+      min-height: 100dvh; display: grid; place-items: center; padding: 20px;
+    }
+    .login-card { width: min(380px, 100%); }
+    .hidden { display: none !important; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+    .pill {
+      display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: #123026; color: #81c995; border: 1px solid #1e4d39;
+    }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .slug-row { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; }
+    .slug-prefix { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .err { color: #f28b82; font-size: 12px; margin-top: 8px; }
+    .ok { color: #81c995; font-size: 12px; margin-top: 8px; }
+    .tpl-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    .tpl-grid {
+      display: grid; gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    .tpl {
+      border: 1px solid var(--line); background: var(--field); border-radius: 12px;
+      padding: 10px; cursor: pointer; text-align: left; color: inherit;
+      display: grid; gap: 8px; transition: border-color .15s, transform .12s;
+    }
+    .tpl:hover { border-color: #3c4454; transform: translateY(-1px); }
+    .tpl.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(1,135,95,.35); }
+    .tpl img {
+      width: 48px; height: 48px; border-radius: 12px; object-fit: cover;
+      background: #222; border: 1px solid var(--line);
+    }
+    .tpl strong { font-size: 12px; line-height: 1.25; display: block; }
+    .tpl span { font-size: 11px; color: var(--muted); }
+    .cat {
+      border: 1px solid var(--line); background: transparent; color: var(--muted);
+      border-radius: 999px; height: 32px; padding: 0 12px; cursor: pointer; font: inherit;
+    }
+    .cat.on { color: #fff; border-color: var(--accent); background: rgba(1,135,95,.18); }
+  </style>
+</head>
+<body>
+  <div id="loginView" class="login-wrap">
+    <div class="card login-card">
+      <h1>Publisher</h1>
+      <p class="sub">Password required. This page is not linked from the panel.</p>
+      <label>Password
+        <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      </label>
+      <div class="actions">
+        <button class="btn btn-primary" id="loginBtn" type="button">Unlock</button>
+      </div>
+      <div class="err hidden" id="loginErr"></div>
+    </div>
+  </div>
+
+  <div id="appView" class="wrap hidden">
+    <div class="topbar">
+      <div>
+        <h1>Play share publisher</h1>
+        <p class="sub" style="margin:0">Upload APK + icon → publish → copy link. Rename slug anytime.</p>
+      </div>
+      <button class="btn btn-secondary" id="logoutBtn" type="button">Lock</button>
+    </div>
+
+    <div class="card">
+      <div class="topbar">
+        <h1 style="font-size:16px;margin:0">Templates</h1>
+        <div class="actions" style="margin:0">
+          <button class="btn btn-secondary" id="randomTplBtn" type="button">Random</button>
+        </div>
+      </div>
+      <p class="hint" style="margin:8px 0 12px">Tap a top app (Bloop, BingX, Amazon, Flipkart, social, investment) to auto-fill listing. Then upload your APK and publish.</p>
+      <div class="tpl-bar" id="tplCats"></div>
+      <div class="tpl-grid" id="tplGrid"><div class="hint">Loading templates…</div></div>
+      <input type="hidden" name="template_id" id="templateId" form="publishForm" value="">
+    </div>
+
+    <div class="card">
+      <h1 style="font-size:16px;margin-bottom:14px">New publish</h1>
+      <form id="publishForm">
+        <div class="row">
+          <label>App name *
+            <input name="app_name" id="appName" required maxlength="80" placeholder="Tesla">
+          </label>
+          <label>Developer
+            <input name="developer" id="developer" maxlength="80" placeholder="Tesla, Inc." value="Developer">
+          </label>
+        </div>
+        <div style="margin-top:12px">
+          <label>Share link slug
+            <div class="slug-row">
+              <span class="slug-prefix" id="slugPrefix">/s/</span>
+              <input name="slug" id="slug" maxlength="64" placeholder="tesla" pattern="[A-Za-z0-9_-]+">
+            </div>
+            <div class="hint">Auto-fills from app name. Change before publish, or rename later.</div>
+          </label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label>APK file *
+            <input name="apk" id="apk" type="file" accept=".apk,application/vnd.android.package-archive" required>
+          </label>
+          <label>Icon (PNG/JPG/WebP)
+            <input name="icon" id="icon" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp">
+          </label>
+        </div>
+        <div class="preview" id="iconPreviewWrap">
+          <img id="iconPreview" alt="" class="hidden">
+          <div class="hint" id="apkHint">No APK selected</div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <label>Rating <input name="rating" value="4.7"></label>
+          <label>Reviews <input name="reviews" value="3.12M"></label>
+          <label>Downloads <input name="downloads" value="10M+"></label>
+          <label>Content rating <input name="content_rating" value="Everyone"></label>
+        </div>
+        <div style="margin-top:12px">
+          <label>About
+            <textarea name="about" placeholder="App description shown under About this app"></textarea>
+          </label>
+        </div>
+        <div style="margin-top:12px">
+          <label>Changelog (one per line)
+            <textarea name="changelog">Bug fixes and performance improvements.
+Critical security vulnerability patch.</textarea>
+          </label>
+        </div>
+        <div style="margin-top:12px">
+          <label>Chips (comma-separated, optional)
+            <input name="chips" placeholder="Contains ads, In-app purchases">
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="publishBtn" type="submit">Publish</button>
+          <button class="btn btn-secondary" type="reset">Reset</button>
+        </div>
+        <div class="err hidden" id="publishErr"></div>
+        <div class="ok hidden" id="publishOk"></div>
+        <div class="linkbox hidden" id="resultBox" style="margin-top:12px"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="topbar">
+        <h1 style="font-size:16px;margin:0">Published links</h1>
+        <button class="btn btn-secondary" id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>App</th>
+              <th>Slug / Link</th>
+              <th>APK</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="shareRows">
+            <tr><td colspan="4" style="color:var(--muted)">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      var BASE = location.pathname.replace(/\/$/, '');
+      var loginView = document.getElementById('loginView');
+      var appView = document.getElementById('appView');
+      var toastEl = document.getElementById('toast');
+      var toastTimer;
+
+      function toast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('on');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2200);
+      }
+
+      function slugify(name) {
+        return String(name || '')
+          .toLowerCase()
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .replace(/-{2,}/g, '-')
+          .slice(0, 48) || ('app-' + Date.now().toString(36));
+      }
+
+      async function api(path, opts) {
+        var res = await fetch(BASE + path, Object.assign({ credentials: 'same-origin' }, opts || {}));
+        var data = null;
+        var ct = res.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') >= 0) {
+          data = await res.json();
+        } else {
+          data = { detail: await res.text() };
+        }
+        if (!res.ok) {
+          var err = new Error((data && (data.detail || data.message)) || ('HTTP ' + res.status));
+          err.status = res.status;
+          err.data = data;
+          throw err;
+        }
+        return data;
+      }
+
+      var allTemplates = [];
+      var activeCategory = 'all';
+      var selectedTplId = '';
+      var templateIconUrl = '';
+
+      async function checkSession() {
+        try {
+          await api('/api/me');
+          showApp();
+          loadShares();
+          loadTemplates();
+        } catch (e) {
+          showLogin();
+        }
+      }
+
+      function showLogin() {
+        loginView.classList.remove('hidden');
+        appView.classList.add('hidden');
+      }
+      function showApp() {
+        loginView.classList.add('hidden');
+        appView.classList.remove('hidden');
+      }
+
+      async function loadTemplates() {
+        try {
+          var data = await api('/api/templates');
+          allTemplates = data.templates || [];
+          renderCats(data.categories || []);
+          renderTemplates();
+        } catch (e) {
+          document.getElementById('tplGrid').innerHTML = '<div class="err">' + esc(e.message) + '</div>';
+        }
+      }
+
+      function renderCats(categories) {
+        var bar = document.getElementById('tplCats');
+        var cats = ['all'].concat(categories || []);
+        bar.innerHTML = cats.map(function (c) {
+          var on = c === activeCategory ? ' on' : '';
+          return '<button type="button" class="cat' + on + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
+        }).join('');
+        bar.querySelectorAll('[data-cat]').forEach(function (b) {
+          b.onclick = function () {
+            activeCategory = b.getAttribute('data-cat');
+            renderCats(categories);
+            renderTemplates();
+          };
+        });
+      }
+
+      function renderTemplates() {
+        var grid = document.getElementById('tplGrid');
+        var list = allTemplates.filter(function (t) {
+          return activeCategory === 'all' || t.category === activeCategory;
+        });
+        if (!list.length) {
+          grid.innerHTML = '<div class="hint">No templates</div>';
+          return;
+        }
+        grid.innerHTML = list.map(function (t) {
+          var active = t.id === selectedTplId ? ' active' : '';
+          return '<button type="button" class="tpl' + active + '" data-id="' + esc(t.id) + '">' +
+            '<img src="' + esc(t.icon_url) + '" alt="">' +
+            '<div><strong>' + esc(t.app_name) + '</strong><span>' + esc(t.category) + ' · ' + esc(t.downloads) + '</span></div>' +
+            '</button>';
+        }).join('');
+        grid.querySelectorAll('[data-id]').forEach(function (b) {
+          b.onclick = function () {
+            var id = b.getAttribute('data-id');
+            var tpl = allTemplates.find(function (x) { return x.id === id; });
+            if (tpl) applyTemplate(tpl);
+          };
+        });
+      }
+
+      function applyTemplate(tpl) {
+        selectedTplId = tpl.id;
+        document.getElementById('templateId').value = tpl.id;
+        document.getElementById('appName').value = tpl.app_name || '';
+        document.getElementById('developer').value = tpl.developer || 'Developer';
+        document.getElementById('slug').value = tpl.slug || slugify(tpl.app_name || '');
+        slugTouched = true;
+        var form = document.getElementById('publishForm');
+        form.rating.value = tpl.rating || '4.7';
+        form.reviews.value = tpl.reviews || '3.12M';
+        form.downloads.value = tpl.downloads || '10M+';
+        form.content_rating.value = tpl.content_rating || 'Everyone';
+        form.about.value = tpl.about || '';
+        form.changelog.value = (tpl.changelog || []).join('\n');
+        form.chips.value = (tpl.chips || []).join(', ');
+        templateIconUrl = tpl.icon_url || '';
+        var img = document.getElementById('iconPreview');
+        if (templateIconUrl) {
+          img.src = templateIconUrl;
+          img.classList.remove('hidden');
+        }
+        // clear file icon so template icon is used on publish
+        document.getElementById('icon').value = '';
+        renderTemplates();
+        toast('Template: ' + (tpl.app_name || tpl.id));
+      }
+
+      document.getElementById('randomTplBtn').onclick = async function () {
+        try {
+          var q = activeCategory !== 'all' ? ('?category=' + encodeURIComponent(activeCategory)) : '';
+          var data = await api('/api/templates/random' + q);
+          if (data.template) applyTemplate(data.template);
+        } catch (e) {
+          toast(e.message || 'Random failed');
+        }
+      };
+
+      document.getElementById('loginBtn').onclick = async function () {
+        var err = document.getElementById('loginErr');
+        err.classList.add('hidden');
+        try {
+          await api('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: document.getElementById('loginPass').value })
+          });
+          showApp();
+          loadShares();
+          loadTemplates();
+          toast('Unlocked');
+        } catch (e) {
+          err.textContent = e.message || 'Login failed';
+          err.classList.remove('hidden');
+        }
+      };
+      document.getElementById('loginPass').addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') document.getElementById('loginBtn').click();
+      });
+
+      document.getElementById('logoutBtn').onclick = async function () {
+        try { await api('/logout', { method: 'POST' }); } catch (e) {}
+        showLogin();
+      };
+
+      var slugTouched = false;
+      document.getElementById('slug').addEventListener('input', function () { slugTouched = true; });
+      document.getElementById('appName').addEventListener('input', function () {
+        if (!slugTouched) document.getElementById('slug').value = slugify(this.value);
+      });
+
+      document.getElementById('icon').addEventListener('change', function () {
+        var f = this.files && this.files[0];
+        var img = document.getElementById('iconPreview');
+        if (!f) { img.classList.add('hidden'); return; }
+        img.src = URL.createObjectURL(f);
+        img.classList.remove('hidden');
+      });
+      document.getElementById('apk').addEventListener('change', function () {
+        var f = this.files && this.files[0];
+        document.getElementById('apkHint').textContent = f
+          ? (f.name + ' · ' + (f.size / (1024 * 1024)).toFixed(2) + ' MB')
+          : 'No APK selected';
+        if (f && !slugTouched && !document.getElementById('appName').value) {
+          var base = f.name.replace(/\.apk$/i, '');
+          document.getElementById('appName').value = base;
+          document.getElementById('slug').value = slugify(base);
+        }
+      });
+
+      document.getElementById('publishForm').addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        var err = document.getElementById('publishErr');
+        var ok = document.getElementById('publishOk');
+        var box = document.getElementById('resultBox');
+        err.classList.add('hidden'); ok.classList.add('hidden'); box.classList.add('hidden');
+        var btn = document.getElementById('publishBtn');
+        btn.disabled = true;
+        try {
+          var fd = new FormData(this);
+          var data = await api('/api/publish', { method: 'POST', body: fd });
+          ok.textContent = 'Published';
+          ok.classList.remove('hidden');
+          var abs = location.origin + data.url;
+          box.innerHTML = '<span class="pill">live</span> <a href="' + data.url + '" target="_blank" rel="noopener">' + abs + '</a>' +
+            ' <button class="btn btn-secondary" type="button" id="copyLinkBtn">Copy</button>';
+          box.classList.remove('hidden');
+          document.getElementById('copyLinkBtn').onclick = function () {
+            navigator.clipboard.writeText(abs).then(function () { toast('Link copied'); });
+          };
+          toast('Published');
+          loadShares();
+          slugTouched = false;
+        } catch (e) {
+          err.textContent = e.message || 'Publish failed';
+          err.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      document.getElementById('refreshBtn').onclick = loadShares;
+
+      async function loadShares() {
+        var tbody = document.getElementById('shareRows');
+        try {
+          var data = await api('/api/shares');
+          var shares = data.shares || [];
+          if (!shares.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No shares yet</td></tr>';
+            return;
+          }
+          tbody.innerHTML = shares.map(function (s) {
+            var tok = s.token || '';
+            var name = s.app_name || tok;
+            var hasApk = s.has_apk ? 'yes' : 'missing';
+            return '<tr>' +
+              '<td><strong>' + esc(name) + '</strong><div class="hint">' + esc(s.developer || '') + '</div></td>' +
+              '<td><a href="/s/' + encodeURIComponent(tok) + '" target="_blank" rel="noopener">/s/' + esc(tok) + '</a></td>' +
+              '<td>' + hasApk + '</td>' +
+              '<td style="white-space:nowrap">' +
+                '<button class="btn btn-secondary" data-copy="' + esc(tok) + '" type="button">Copy</button> ' +
+                '<button class="btn btn-secondary" data-rename="' + esc(tok) + '" type="button">Rename</button> ' +
+                '<button class="btn btn-danger" data-del="' + esc(tok) + '" type="button">Delete</button>' +
+              '</td></tr>';
+          }).join('');
+          tbody.querySelectorAll('[data-copy]').forEach(function (b) {
+            b.onclick = function () {
+              var url = location.origin + '/s/' + b.getAttribute('data-copy');
+              navigator.clipboard.writeText(url).then(function () { toast('Copied'); });
+            };
+          });
+          tbody.querySelectorAll('[data-rename]').forEach(function (b) {
+            b.onclick = async function () {
+              var oldTok = b.getAttribute('data-rename');
+              var next = prompt('New slug for /s/…', oldTok);
+              if (!next || next === oldTok) return;
+              try {
+                var data = await api('/api/rename', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ from_token: oldTok, to_token: next })
+                });
+                toast('Renamed → /s/' + data.token);
+                loadShares();
+              } catch (e) { toast(e.message || 'Rename failed'); }
+            };
+          });
+          tbody.querySelectorAll('[data-del]').forEach(function (b) {
+            b.onclick = async function () {
+              var tok = b.getAttribute('data-del');
+              if (!confirm('Delete /s/' + tok + ' ?')) return;
+              try {
+                await api('/api/shares/' + encodeURIComponent(tok), { method: 'DELETE' });
+                toast('Deleted');
+                loadShares();
+              } catch (e) { toast(e.message || 'Delete failed'); }
+            };
+          });
+        } catch (e) {
+          if (e.status === 401) showLogin();
+          else tbody.innerHTML = '<tr><td colspan="4" class="err">' + esc(e.message) + '</td></tr>';
+        }
+      }
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      checkSession();
+    })();
+  </script>
+</body>
+</html>

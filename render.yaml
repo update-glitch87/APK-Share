@@ -1,0 +1,24 @@
+# Render Blueprint — free web service for PPstore
+# Dashboard: New → Blueprint → connect this repo
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: ppstore
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir server
+    healthCheckPath: /health
+    envVars:
+      - key: PLAY_ADMIN_PASS
+        generateValue: true
+      - key: PLAY_ADMIN_SECRET
+        generateValue: true
+      - key: PLAY_ADMIN_PATH
+        value: px-console
+      - key: PLAY_COOKIE_SECURE
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.12.7"

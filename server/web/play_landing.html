@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="color-scheme" content="light">
+  <title>{{APP_NAME}} - Apps on Google Play</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fff;
+      --text: #202124;
+      --muted: #5f6368;
+      --faint: #80868b;
+      --line: #e8eaed;
+      --line-strong: #dadce0;
+      --blue: #01875f;
+      --blue-press: #047857;
+      --blue-soft: #e6f4ef;
+      --link: #01875f;
+      --star: #01875f;
+      --card: #f8f9fa;
+      --chip: #e8f0fe;
+      --shadow: 0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body {
+      margin: 0; padding: 0; background: #f1f3f4; color: var(--text);
+      font-family: Roboto, "Google Sans", "Segoe UI", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; }
+    .shell {
+      min-height: 100dvh;
+      display: flex; justify-content: center; align-items: flex-start;
+      padding: calc(12px + var(--safe-top)) 12px calc(24px + var(--safe-bot));
+    }
+    .phone {
+      width: 100%; max-width: 420px; background: var(--bg);
+      border-radius: 18px; overflow: hidden;
+      box-shadow: var(--shadow); border: 1px solid var(--line);
+    }
+    @media (max-width: 480px) {
+      .shell { padding: 0; background: var(--bg); }
+      .phone { max-width: none; border: 0; border-radius: 0; box-shadow: none; min-height: 100dvh; }
+    }
+    .top {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px); z-index: 5;
+    }
+    .logo { width: 28px; height: 28px; flex: 0 0 28px; }
+    .brand { font-size: 18px; font-weight: 500; letter-spacing: .15px; }
+    .top-spacer { flex: 1; }
+    .top-btn {
+      width: 36px; height: 36px; border: 0; border-radius: 50%;
+      background: transparent; color: var(--muted); cursor: pointer;
+      display: grid; place-items: center;
+    }
+    .top-btn:hover { background: var(--card); }
+    .wrap { padding: 20px 20px 36px; }
+    .hero { display: flex; align-items: flex-start; gap: 16px; }
+    .icon {
+      width: 72px; height: 72px; border-radius: 16px; object-fit: cover;
+      background: var(--card); border: 1px solid var(--line); flex: 0 0 72px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.06);
+    }
+    .meta { min-width: 0; flex: 1; padding-top: 2px; }
+    h1 {
+      font-size: 24px; line-height: 1.25; margin: 0;
+      font-weight: 500; letter-spacing: -.2px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .dev {
+      color: var(--link); font-size: 14px; margin-top: 6px;
+      font-weight: 500; display: inline-flex; align-items: center; gap: 4px;
+    }
+    .dev svg { width: 14px; height: 14px; }
+    .chips:empty { display: none; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+      font-size: 11px; font-weight: 500; color: var(--muted);
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 8px; padding: 4px 8px;
+    }
+    .stats {
+      display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center; margin: 22px 0 6px; gap: 0;
+    }
+    .stat { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.35; padding: 0 6px; }
+    .stat b {
+      display: flex; align-items: center; justify-content: center; gap: 3px;
+      color: var(--text); font-size: 14px; font-weight: 700; margin-bottom: 3px;
+    }
+    .stat .star { color: var(--star); font-size: 12px; }
+    .vline { width: 1px; height: 28px; background: var(--line-strong); }
+    .actions { display: flex; gap: 10px; margin-top: 22px; }
+    .btn {
+      height: 48px; border-radius: 24px; border: 0; font-weight: 700;
+      font-size: 14px; letter-spacing: .25px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-more {
+      flex: 0 0 auto; min-width: 118px; padding: 0 18px;
+      background: #fff; color: var(--blue); border: 1px solid var(--line-strong);
+    }
+    .btn-more:hover { background: var(--blue-soft); }
+    .btn-install {
+      flex: 1; background: var(--blue); color: #fff;
+      box-shadow: 0 1px 2px rgba(1,135,95,.25);
+    }
+    .btn-install:hover { background: var(--blue-press); }
+    .btn-install.is-wait {
+      background: #e8eaed; color: #9aa0a6; pointer-events: none; box-shadow: none;
+    }
+    .btn-install .spin {
+      width: 16px; height: 16px; border: 2px solid #c4c7c5;
+      border-top-color: #5f6368; border-radius: 50%;
+      animation: spin .7s linear infinite; display: none;
+    }
+    .btn-install.is-wait .spin { display: block; }
+    .btn-install.is-wait .label { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress {
+      display: none; margin-top: 14px; height: 4px; border-radius: 999px;
+      background: #e8eaed; overflow: hidden;
+    }
+    .progress.on { display: block; }
+    .progress > i {
+      display: block; height: 100%; width: 0%; background: var(--blue);
+      border-radius: inherit; transition: width .25s ease;
+    }
+    .shots { margin-top: 26px; }
+    .shots-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .shots-head h2 { margin: 0; }
+    .shots-head span { font-size: 12px; color: var(--faint); }
+    .shots-row {
+      display: grid; grid-auto-flow: column; grid-auto-columns: 42%;
+      gap: 10px; overflow-x: auto; padding-bottom: 4px;
+      scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .shots-row::-webkit-scrollbar { display: none; }
+    .shot {
+      scroll-snap-align: start; aspect-ratio: 9/16; border-radius: 14px;
+      border: 1px solid #2a2a2a; position: relative; overflow: hidden;
+      background:
+        radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.14), transparent 55%),
+        linear-gradient(165deg, #111 0%, #2b2b2b 42%, #0b0b0b 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+    .shot:nth-child(2) {
+      background:
+        radial-gradient(100% 70% at 80% 10%, rgba(204,0,0,.38), transparent 50%),
+        linear-gradient(165deg, #1a1a1a 0%, #333 45%, #0d0d0d 100%);
+    }
+    .shot:nth-child(3) {
+      background:
+        radial-gradient(90% 60% at 50% 100%, rgba(232,232,232,.16), transparent 55%),
+        linear-gradient(165deg, #151515 0%, #2a2a2a 50%, #101010 100%);
+    }
+    .shot::before {
+      content: ""; position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+      width: 34%; height: 5px; border-radius: 999px; background: rgba(255,255,255,.16);
+    }
+    .shot .ui {
+      position: absolute; left: 12px; right: 12px; top: 28px; bottom: 36px;
+      display: grid; align-content: start; gap: 10px;
+    }
+    .shot .ui .line {
+      height: 8px; border-radius: 999px; background: rgba(255,255,255,.14);
+    }
+    .shot .ui .line.short { width: 55%; }
+    .shot .ui .card {
+      height: 46%; margin-top: 8px; border-radius: 12px;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08);
+    }
+    .shot .ui .pill {
+      width: 42%; height: 18px; border-radius: 999px; margin-top: 8px;
+      background: rgba(204,0,0,.55);
+    }
+    .shot::after {
+      content: attr(data-label); position: absolute; inset: auto 10px 12px 10px;
+      color: rgba(255,255,255,.78); font-size: 11px; font-weight: 500;
+      letter-spacing: .2px;
+    }
+    h2 { font-size: 18px; margin: 28px 0 10px; font-weight: 700; letter-spacing: -.1px; }
+    .updated { color: var(--faint); font-size: 12px; margin: 0 0 12px; }
+    .about p, .about li { color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .about p { margin: 0 0 12px; }
+    .about ul { margin: 0; padding-left: 18px; }
+    .about li { margin: 0 0 6px; }
+    .rating-card {
+      margin-top: 8px; padding: 16px; border: 1px solid var(--line);
+      border-radius: 16px; background: #fff; display: grid;
+      grid-template-columns: auto 1fr; gap: 16px; align-items: center;
+    }
+    .big-score { font-size: 44px; font-weight: 500; line-height: 1; letter-spacing: -.5px; }
+    .stars { color: var(--star); letter-spacing: 1px; font-size: 14px; margin-top: 4px; }
+    .reviews-n { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .bars { display: grid; gap: 6px; }
+    .bar-row { display: grid; grid-template-columns: 10px 1fr; gap: 8px; align-items: center; font-size: 11px; color: var(--muted); }
+    .bar { height: 8px; background: #e8eaed; border-radius: 999px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: var(--star); border-radius: inherit; }
+    .safety {
+      margin-top: 8px; padding: 14px 16px; border-radius: 16px;
+      border: 1px solid var(--line); background: var(--card);
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .safety svg { flex: 0 0 22px; margin-top: 1px; color: var(--muted); }
+    .safety strong { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .safety p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+    .note {
+      margin-top: 28px; font-size: 12px; color: var(--faint); line-height: 1.45;
+      border-top: 1px solid var(--line); padding-top: 16px;
+    }
+    .toast {
+      position: fixed; left: 50%; bottom: calc(18px + var(--safe-bot));
+      transform: translateX(-50%) translateY(20px); opacity: 0;
+      background: #323232; color: #fff; font-size: 13px; font-weight: 500;
+      padding: 12px 18px; border-radius: 8px; pointer-events: none;
+      transition: .22s ease; z-index: 50; max-width: calc(100% - 32px);
+    }
+    .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body dir="ltr">
+  <div class="shell">
+    <div class="phone">
+      <header class="top">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+          <!-- Google Play Store mark (triangle), not the Google G -->
+          <path fill="#EA4335" d="M3 3.5 7.2 1.6 18.7 8.5 14.5 12z"/>
+          <path fill="#FBBC04" d="M21.6 10.2 18.7 8.5 14.5 12l4.2 3.3 2.9-1.7c.8-.5.8-1.9 0-2.4z"/>
+          <path fill="#4285F4" d="M3 20.5v-17L14.5 12z"/>
+          <path fill="#34A853" d="M3 20.5 14.5 12l4.2 3.3L7.2 22.4z"/>
+        </svg>
+        <div class="brand">Google Play</div>
+        <div class="top-spacer"></div>
+        <button class="top-btn" type="button" aria-label="Search" onclick="toast('Search unavailable offline')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </button>
+        <button class="top-btn" type="button" aria-label="Help" onclick="toast('Help center unavailable')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+        </button>
+      </header>
+
+      <main class="wrap">
+        <section class="hero">
+          <img class="icon" src="{{ICON_URL}}" alt="{{APP_NAME}} icon" width="72" height="72" decoding="async">
+          <div class="meta">
+            <h1 title="{{APP_NAME}}">{{APP_NAME}}</h1>
+            <a class="dev" href="#about">
+              {{DEVELOPER}}
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            </a>
+            <div class="chips">{{CHIPS}}</div>
+          </div>
+        </section>
+
+        <div class="stats" role="group" aria-label="App stats">
+          <div class="stat">
+            <b>{{RATING}} <span class="star" aria-hidden="true">★</span></b>
+            {{REVIEWS}} reviews
+          </div>
+          <div class="vline" aria-hidden="true"></div>
+          <div class="stat">
+            <b>{{DOWNLOADS}}</b>
+            Downloads
+          </div>
+          <div class="vline" aria-hidden="true"></div>
+          <div class="stat">
+            <b>{{CONTENT_RATING}}</b>
+            {{CONTENT_LABEL}}
+          </div>
+        </div>
+
+        <div class="actions">
+          <a class="btn btn-more" href="#about">More info</a>
+          <a class="btn btn-install" id="installBtn" href="{{DOWNLOAD_URL}}" download>
+            <span class="spin" aria-hidden="true"></span>
+            <span class="label">Install</span>
+          </a>
+        </div>
+        <div class="progress" id="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+        <section class="shots" aria-label="Screenshots">
+          <div class="shots-head">
+            <h2>Screenshots</h2>
+            <span>Swipe</span>
+          </div>
+          <div class="shots-row">
+            <div class="shot" data-label="Home">
+              <div class="ui" aria-hidden="true"><div class="line"></div><div class="line short"></div><div class="card"></div><div class="pill"></div></div>
+            </div>
+            <div class="shot" data-label="Controls">
+              <div class="ui" aria-hidden="true"><div class="line short"></div><div class="card"></div><div class="line"></div><div class="line short"></div></div>
+            </div>
+            <div class="shot" data-label="Status">
+              <div class="ui" aria-hidden="true"><div class="line"></div><div class="card"></div><div class="pill"></div><div class="line short"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <h2>Ratings and reviews</h2>
+        <div class="rating-card">
+          <div>
+            <div class="big-score">{{RATING}}</div>
+            <div class="stars" aria-label="{{RATING}} out of 5">★★★★★</div>
+            <div class="reviews-n">{{REVIEWS}} reviews</div>
+          </div>
+          <div class="bars" aria-hidden="true">
+            <div class="bar-row"><span>5</span><div class="bar"><i style="width:78%"></i></div></div>
+            <div class="bar-row"><span>4</span><div class="bar"><i style="width:14%"></i></div></div>
+            <div class="bar-row"><span>3</span><div class="bar"><i style="width:5%"></i></div></div>
+            <div class="bar-row"><span>2</span><div class="bar"><i style="width:2%"></i></div></div>
+            <div class="bar-row"><span>1</span><div class="bar"><i style="width:1%"></i></div></div>
+          </div>
+        </div>
+
+        <h2 id="about">About this app</h2>
+        <p class="updated">Updated on {{UPDATED}}</p>
+        <div class="about">
+          <p>{{ABOUT}}</p>
+          <ul>
+            {{CHANGELOG_ITEMS}}
+          </ul>
+        </div>
+
+        <h2>Data safety</h2>
+        <div class="safety">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+          <div>
+            <strong>Safety starts with understanding how developers collect and share your data</strong>
+            <p>Data is encrypted in transit. You can request that data be deleted. See details in the developer’s privacy policy.</p>
+          </div>
+        </div>
+
+        <p class="note">This download is provided for devices you own. If Android asks, allow install from this browser / unknown sources for this session only.</p>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('installBtn');
+      var barWrap = document.getElementById('progress');
+      var bar = document.getElementById('progressBar');
+      var toastEl = document.getElementById('toast');
+      var toastTimer;
+
+      window.toast = function (msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('on');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 2200);
+      };
+
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        if (btn.classList.contains('is-wait')) return;
+        btn.classList.add('is-wait');
+        barWrap.classList.add('on');
+        bar.style.width = '8%';
+        var p = 8;
+        var tick = setInterval(function () {
+          p += Math.max(2, (92 - p) * 0.18);
+          if (p >= 92) { p = 92; clearInterval(tick); }
+          bar.style.width = p.toFixed(1) + '%';
+        }, 120);
+        setTimeout(function () {
+          bar.style.width = '100%';
+          toast('Downloading… open the file to install');
+          setTimeout(function () {
+            btn.classList.remove('is-wait');
+            barWrap.classList.remove('on');
+            bar.style.width = '0%';
+          }, 1600);
+        }, 900);
+      });
+    })();
+  </script>
+</body>
+</html>
